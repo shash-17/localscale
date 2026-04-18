@@ -4,6 +4,7 @@ import ContainerList from './components/ContainerList'
 import MetricsChart from './components/MetricsChart'
 import EconomicsPanel from './components/EconomicsPanel'
 import ControlPanel from './components/ControlPanel'
+import PolicyPanel from './components/PolicyPanel'
 import { fetchContainers } from './services/api'
 import type { Container } from './services/api'
 
@@ -108,31 +109,47 @@ function App() {
 
         {/* Main area */}
         <main className="flex-1 p-4">
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-semibold">Dashboard</h1>
-              <p className="text-sm text-gray-500">Overview of running containers</p>
-            </div>
-
-            <div className="w-full md:w-96">
-              <EconomicsPanel />
-            </div>
-          </div>
-
-          <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <ContainerList containers={containers} selected={selected ?? undefined} onSelect={handleSelect} />
-            </div>
-
-            <div className="space-y-6">
-              <div className="bg-white dark:bg-gray-900 p-3 rounded-lg border h-64 md:h-80">
-                <MetricsChart containerName={selected ?? undefined} />
+          {nav === 'dashboard' && (
+            <>
+              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                <div>
+                  <h1 className="text-2xl font-semibold">Dashboard</h1>
+                  <p className="text-sm text-gray-500">Overview of running containers</p>
+                </div>
+                <div className="w-full md:w-96">
+                  <EconomicsPanel />
+                </div>
               </div>
+              <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <ContainerList containers={containers} selected={selected ?? undefined} onSelect={handleSelect} />
+                </div>
+                <div className="space-y-6">
+                  <div className="bg-white dark:bg-gray-900 p-3 rounded-lg border h-64 md:h-80">
+                    <MetricsChart containerName={selected ?? undefined} />
+                  </div>
+                  <ControlPanel onDone={reloadNow} />
+                </div>
+              </div>
+            </>
+          )}
 
-              <ControlPanel onDone={reloadNow} />
-            </div>
-          </div>
-        </main>
+          {nav === 'economics' && (
+            <>
+              <h1 className="text-2xl font-semibold mb-6">Economics & Scale</h1>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <EconomicsPanel />
+              </div>
+            </>
+          )}
+
+          {nav === 'settings' && (
+            <>
+              <h1 className="text-2xl font-semibold mb-6">Settings & Policies</h1>
+              <PolicyPanel />
+            </>
+          )}
+</main>
       </div>
     </div>
   )

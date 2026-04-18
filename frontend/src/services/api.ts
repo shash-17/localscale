@@ -67,3 +67,17 @@ export async function fetchHistory(limit = 100): Promise<MetricHistory[]> {
 }
 
 export default api
+
+export async function fetchPolicies(): Promise<any[]> {
+  try {
+    const { data } = await api.get<any[]>('/policies')
+    return data
+  } catch(e) {
+    return []
+  }
+}
+
+export async function addPolicy(policy: string): Promise<any> {
+  const { data } = await api.post('/policies', { policy })
+  return data
+}
