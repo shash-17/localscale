@@ -1,0 +1,36 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+env/
+ENV/
+.env
+
+# Database
+*.sqlite3
+*.db
+
+# Packaging
+*.egg-info/
+dist/
+build/
+
+# Editor/IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Logs
+*.log
+pytest_cache/
+
+# Node
+node_modules/
+
+# Project artifacts
+loadtest/loadtest_comparison.png
+loadtest/*.csv

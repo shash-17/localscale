@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <script>
+      // Safety prelude: ensure react-refresh globals exist and surface runtime errors
+      window.$RefreshReg$ = window.$RefreshReg$ || function () {}
+      window.$RefreshSig$ = window.$RefreshSig$ || function () {
+        return function (type) {
+          return type
+        }
+      }
+
+      function showOverlay(msg) {
+        try {
+          const id = 'ls-runtime-error-overlay'
+          let el = document.getElementById(id)
+          if (!el) {
+            el = document.createElement('div')
+            el.id = id
+            Object.assign(el.style, {
+              position: 'fixed',
+              left: '0',
+              right: '0',
+              top: '0',
+              background: '#111',
+              color: '#fff',
+              padding: '12px',
+              zIndex: '999999',
+              fontFamily: 'monospace',
+              whiteSpace: 'pre-wrap'
+            })
+            document.body && document.body.appendChild(el)
+          }
+          el.textContent = msg
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      window.addEventListener('error', (e) => {
+        const msg = 'Runtime error: ' + (e.error && (e.error.stack || e.error.message) || e.message)
+        showOverlay(msg)
+        // also log to console
+        console.error(e.error || e)
+      })
+
+      window.addEventListener('unhandledrejection', (ev) => {
+        const reason = ev.reason
+        const msg = 'Unhandled rejection: ' + (reason && (reason.stack || reason.message) || String(reason))
+        showOverlay(msg)
+        console.error('Unhandled rejection', reason)
+      })
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/favicon.svg" />
+    <title>LocalScale</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>frontend</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
