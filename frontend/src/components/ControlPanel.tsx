@@ -9,6 +9,7 @@ const ControlPanel: React.FC<Props> = ({ onDone }) => {
   const [image, setImage] = useState('nginx:alpine')
   const [name, setName] = useState('test')
   const [replicas, setReplicas] = useState<number>(1)
+  const [envVars, setEnvVars] = useState('')
   const [scaleName, setScaleName] = useState('')
   const [scaleReplicas, setScaleReplicas] = useState<number>(1)
   const [status, setStatus] = useState<string | null>(null)
@@ -17,7 +18,15 @@ const ControlPanel: React.FC<Props> = ({ onDone }) => {
     e.preventDefault()
     setStatus('Deploying...')
     try {
-      await deployService({ image, name, replicas })
+      let environment: Record<string, string> | undefined = undefined;
+      if (envVars) {
+        environment = {}
+        envVars.split('\n').forEach(line => {
+          const [k, ...v] = line.split('=')
+          if (k && k.trim()) environment![k.trim()] = v.join('=').trim()
+        })
+      }
+      await deployService({ image, name, replicas, environment })
       setStatus('Deployed')
       onDone && onDone()
     } catch (err: any) {
@@ -47,10 +56,11 @@ const ControlPanel: React.FC<Props> = ({ onDone }) => {
         <div className="text-sm font-semibold">Deploy</div>
         <div className="flex gap-2">
           <input value={image} onChange={(e) => setImage(e.target.value)} className="border px-2 py-1 flex-1" placeholder="image:tag" />
-          <input value={name} onChange={(e) => setName(e.target.value)} className="border px-2 py-1 w-40" placeholder="name" />
-          <input type="number" value={replicas} onChange={(e) => setReplicas(Number(e.target.value))} className="border px-2 py-1 w-24" min={1} />
-          <button className="bg-indigo-600 text-white px-3 py-1 rounded">Deploy</button>
+          <input value={name} onChange={(e) => setName(e.target.value)} className="border px-2 py-1 w-32" placeholder="name" />
+          <input type="number" value={replicas} onChange={(e) => setReplicas(Number(e.target.value))} className="border px-2 py-1 w-16" min={1} />
         </div>
+        <textarea value={envVars} onChange={(e) => setEnvVars(e.target.value)} className="border px-2 py-1 w-full text-sm font-mono h-16" placeholder={`KEY=value\nOTHER_KEY=something`} />
+        <button className="bg-indigo-600 text-white px-3 py-1 rounded w-full">Deploy Configured Container</button>
       </form>
 
       <form onSubmit={handleScale} className="space-y-2">

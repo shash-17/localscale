@@ -1,116 +1,132 @@
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
-}
+/* ═══════════════════════════════════════════════════
+   LocalScale — Global Design System (Neumorphic)
+   ═══════════════════════════════════════════════════ */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Neumorphic palette */
+  --neu-bg: #e4e8eb;
+  --neu-bg-alt: #dce0e3;
+  --neu-shadow-dark: #bec2c6;
+  --neu-shadow-light: #ffffff;
+  --neu-text: #1a1d23;
+  --neu-text-secondary: #5a6072;
+  --neu-text-muted: #8a8f9e;
+  --neu-accent: #4f46e5;
+  --neu-accent-hover: #4338ca;
+  --neu-accent-glow: rgba(79, 70, 229, 0.15);
+  --neu-accent-soft: rgba(79, 70, 229, 0.06);
+  --neu-success: #059669;
+  --neu-warning: #d97706;
+  --neu-danger: #dc2626;
+  --neu-border: rgba(0, 0, 0, 0.04);
+  --neu-radius: 16px;
+  --neu-radius-sm: 10px;
+  --neu-radius-xs: 6px;
+  --neu-font: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+  font-family: var(--neu-font);
+  color-scheme: light;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
+  padding: 0;
+  background: var(--neu-bg);
+  color: var(--neu-text);
+  font-family: var(--neu-font);
+  line-height: 1.5;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+#root {
+  width: 100%;
+  margin: 0 auto;
+  min-height: 100svh;
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
+::selection {
+  background: rgba(79, 70, 229, 0.15);
+  color: var(--neu-text);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--neu-shadow-dark);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a0a4a8;
+}
+
+/* Focus ring */
+*:focus-visible {
+  outline: 2px solid var(--neu-accent);
+  outline-offset: 2px;
+}
+
+/* ─── Neumorphic Utility Classes ─── */
+@layer utilities {
+  .neu-bg {
+    background-color: var(--neu-bg);
   }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
+  .neu-raised {
+    background: var(--neu-bg);
+    box-shadow: 6px 6px 14px var(--neu-shadow-dark),
+                -6px -6px 14px var(--neu-shadow-light);
+    border: 1px solid rgba(255, 255, 255, 0.5);
   }
-}
-p {
-  margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+  .neu-raised-sm {
+    background: var(--neu-bg);
+    box-shadow: 3px 3px 8px var(--neu-shadow-dark),
+                -3px -3px 8px var(--neu-shadow-light);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+  }
+  .neu-inset {
+    background: var(--neu-bg);
+    box-shadow: inset 3px 3px 8px var(--neu-shadow-dark),
+                inset -3px -3px 8px var(--neu-shadow-light);
+  }
+  .neu-flat {
+    background: var(--neu-bg);
+    box-shadow: 4px 4px 10px var(--neu-shadow-dark),
+                -4px -4px 10px var(--neu-shadow-light);
+  }
+  .neu-btn {
+    background: var(--neu-bg);
+    box-shadow: 3px 3px 8px var(--neu-shadow-dark),
+                -3px -3px 8px var(--neu-shadow-light);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .neu-btn:hover {
+    box-shadow: 5px 5px 12px var(--neu-shadow-dark),
+                -5px -5px 12px var(--neu-shadow-light);
+  }
+  .neu-btn:active,
+  .neu-btn-pressed {
+    box-shadow: inset 2px 2px 5px var(--neu-shadow-dark),
+                inset -2px -2px 5px var(--neu-shadow-light);
+  }
 }

@@ -1,60 +1,50 @@
+with open("frontend/src/App.tsx", "r") as f:
+    text = f.read()
+
+# Update state selected
+text = text.replace("const [selected, setSelected] = useState<string | null>(null)", "const [selected, setSelected] = useState<string[]>([])")
+
+# Update handleSelect to toggle an array
+handle_select_old = """  function handleSelect(name: string) {
+    setSelected((prev) => (prev === name ? null : name))
+  }"""
+handle_select_new = """  function handleSelect(name: string) {
+    setSelected((prev) => 
+      prev.includes(name) ? prev.filter(p => p !== name) : [...prev, name]
+    )
+  }"""
+text = text.replace(handle_select_old, handle_select_new)
+
+# Update loading step where selected is preset initially
+load_old = """        if (!selected && cs.length > 0) {
+          setSelected(cs[0].name)
+        }"""
+load_new = """        if (selected.length === 0 && cs.length > 0) {
+          // Default to all selected
+          setSelected(cs.map((c: any) => c.name))
+        }"""
+text = text.replace(load_old, load_new)
+text = text.replace("if (!selected && cs.length > 0)", "if (selected.length === 0 && cs.length > 0)") # Just in case
+
+# Fix type issue since I'm passing a string array but ContainerList expected a string | undefined
+# Oh wait, ContainerList expects selected?: string
+# We need to change ContainerList to accept string[]
 import re
+text = re.sub(r'selected=\{selected \?\? undefined\}', 'selected={selected}', text)
 
-with open('frontend/src/App.tsx', 'r') as f:
-    app_code = f.read()
+# Pass containers to MetricsChart filtered by selected
+chart_old = """<MetricsChart containerName={selected ?? undefined} />"""
+chart_new = """<MetricsChart containers={containers.filter(c => selected.includes(c.name))} />"""
+text = text.replace(chart_old, chart_new)
 
-# add import
-if 'PolicyPanel' not in app_code:
-    app_code = app_code.replace("import ControlPanel from './components/ControlPanel'\n", "import ControlPanel from './components/ControlPanel'\nimport PolicyPanel from './components/PolicyPanel'\n")
+with open("frontend/src/App.tsx", "w") as f:
+    f.write(text)
 
-# Replace main content to be conditional
-main_regex = re.compile(r'(<main className="flex-1 p-4">).*?(</main>)', re.DOTALL)
+with open("frontend/src/components/ContainerList.tsx", "r") as f:
+    text_cls = f.read()
 
-replacement = """\\1
-          {nav === 'dashboard' && (
-            <>
-              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                <div>
-                  <h1 className="text-2xl font-semibold">Dashboard</h1>
-                  <p className="text-sm text-gray-500">Overview of running containers</p>
-                </div>
-                <div className="w-full md:w-96">
-                  <EconomicsPanel />
-                </div>
-              </div>
-              <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
-                  <ContainerList containers={containers} selected={selected ?? undefined} onSelect={handleSelect} />
-                </div>
-                <div className="space-y-6">
-                  <div className="bg-white dark:bg-gray-900 p-3 rounded-lg border h-64 md:h-80">
-                    <MetricsChart containerName={selected ?? undefined} />
-                  </div>
-                  <ControlPanel onDone={reloadNow} />
-                </div>
-              </div>
-            </>
-          )}
-
-          {nav === 'economics' && (
-            <>
-              <h1 className="text-2xl font-semibold mb-6">Economics & Scale</h1>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <EconomicsPanel />
-              </div>
-            </>
-          )}
-
-          {nav === 'settings' && (
-            <>
-              <h1 className="text-2xl font-semibold mb-6">Settings & Policies</h1>
-              <PolicyPanel />
-            </>
-          )}
-\\2"""
-
-app_code = main_regex.sub(replacement, app_code)
-
-with open('frontend/src/App.tsx', 'w') as f:
-    f.write(app_code)
-
+text_cls = text_cls.replace("selected?: string", "selected?: string[]")
+text_cls = text_cls.replace("className={`p-3 bg-white dark:bg-gray-800 rounded-lg border cursor-pointer hover:shadow-md transition ${selected === c.name ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-gray-200 dark:border-gray-700'}`}", 
+                            "className={`p-3 bg-white dark:bg-gray-800 rounded-lg border cursor-pointer hover:shadow-md transition ${selected?.includes(c.name) ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-gray-200 dark:border-gray-700'}`}")
+with open("frontend/src/components/ContainerList.tsx", "w") as f:
+    f.write(text_cls)

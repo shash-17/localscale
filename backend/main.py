@@ -72,6 +72,7 @@ class DeployRequest(BaseModel):
     name: str
     replicas: int = 1
     ports: Optional[Dict[str, Any]] = None
+    environment: Optional[Dict[str, str]] = None
 
 
 class ScaleRequest(BaseModel):
@@ -90,7 +91,7 @@ class MetricEntry(BaseModel):
 
 
 class PolicyCreate(BaseModel):
-    policy: str
+    policy: Any
 
 
 class PolicyEvaluateRequest(BaseModel):
@@ -185,11 +186,36 @@ def get_stats(container_id: str):
     return {"cpu_percent": cpu, "memory": memory, "network_io": network_io}
 
 
+
+@app.post("/containers/{container_id}/stop")
+def stop_container(container_id: str):
+    docker_required()
+    success = manager.stop_container(container_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to stop container")
+    return {"status": "ok"}
+
+@app.post("/containers/{container_id}/start")
+def start_existing_container(container_id: str):
+    docker_required()
+    success = manager.start_container_by_id(container_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to start container")
+    return {"status": "ok"}
+
+@app.delete("/containers/{container_id}")
+def remove_container(container_id: str):
+    docker_required()
+    success = manager.remove_container(container_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to remove container")
+    return {"status": "ok"}
+
 @app.post("/deploy")
 def deploy(req: DeployRequest):
     docker_required()
     # Use ContainerManager.scale_container to create the initial replicas (name-1..name-N)
-    results = manager.scale_container(req.name, req.replicas, image=req.image, ports=req.ports)
+    results = manager.scale_container(req.name, req.replicas, image=req.image, ports=req.ports, environment=req.environment)
     return {"results": results}
 
 

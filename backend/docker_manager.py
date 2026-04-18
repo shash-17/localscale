@@ -75,7 +75,7 @@ class ContainerManager:
             print(f"Error getting stats for container {container_id}: {e}")
             return {}
 
-    def start_container(self, image, name, ports=None):
+    def start_container(self, image, name, ports=None, environment=None):
         if not self.client:
             return None
         try:
@@ -83,6 +83,7 @@ class ContainerManager:
                 image,
                 name=name,
                 ports=ports,
+                environment=environment,
                 detach=True
             )
             return container.id
@@ -101,7 +102,7 @@ class ContainerManager:
             print(f"Error stopping container {container_id}: {e}")
             return False
 
-    def scale_container(self, name, replicas, image=None, ports=None):
+    def scale_container(self, name, replicas, image=None, ports=None, environment=None):
         if not self.client:
             return []
         results = []
@@ -114,7 +115,7 @@ class ContainerManager:
                 cname = f"{name}-{i}"
                 if cname not in running:
                     if image:
-                        cid = self.start_container(image, cname, ports)
+                        cid = self.start_container(image, cname, ports, environment)
                         results.append({'name': cname, 'action': 'started', 'id': cid})
                 else:
                     c = running[cname]
@@ -135,3 +136,25 @@ class ContainerManager:
         except DockerException as e:
             print(f"Error scaling containers: {e}")
             return results
+
+    def start_container_by_id(self, container_id):
+        if not self.client:
+            return False
+        try:
+            container = self.client.containers.get(container_id)
+            container.start()
+            return True
+        except Exception as e:
+            print(f"Error starting container {container_id}: {e}")
+            return False
+
+    def remove_container(self, container_id):
+        if not self.client:
+            return False
+        try:
+            container = self.client.containers.get(container_id)
+            container.remove(force=True)
+            return True
+        except Exception as e:
+            print(f"Error removing container {container_id}: {e}")
+            return False

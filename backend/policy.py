@@ -111,6 +111,7 @@ class PolicyEngine:
         duration_seconds: float,
         region: str = "us-east-1",
         host_cpus: Optional[int] = None,
+        container_name: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Evaluate current policies against an observed sample.
 
@@ -131,7 +132,12 @@ class PolicyEngine:
             metric = p.get("metric") if isinstance(p, dict) else None
             threshold = p.get("threshold") if isinstance(p, dict) else None
             period = p.get("period") if isinstance(p, dict) else None
+            c_name = p.get("container") if isinstance(p, dict) else None
             raw = p.get("raw") if isinstance(p, dict) else (p if isinstance(p, str) else str(p))
+            
+            if c_name and container_name and c_name not in container_name:
+                continue
+
 
             if metric == "cost" and threshold is not None:
                 observed = cost

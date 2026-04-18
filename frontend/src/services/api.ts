@@ -34,6 +34,7 @@ export interface DeployRequest {
   name: string
   replicas?: number
   ports?: Record<string, any>
+  environment?: Record<string, string>
 }
 
 export interface ScaleRequest {
@@ -77,7 +78,23 @@ export async function fetchPolicies(): Promise<any[]> {
   }
 }
 
-export async function addPolicy(policy: string): Promise<any> {
+export async function addPolicy(policy: any): Promise<any> {
   const { data } = await api.post('/policies', { policy })
+  return data
+}
+
+
+export async function stopContainer(id: string): Promise<any> {
+  const { data } = await api.post(`/containers/${id}/stop`)
+  return data
+}
+
+export async function startContainer(id: string): Promise<any> {
+  const { data } = await api.post(`/containers/${id}/start`)
+  return data
+}
+
+export async function removeContainer(id: string): Promise<any> {
+  const { data } = await api.delete(`/containers/${id}`)
   return data
 }

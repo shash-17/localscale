@@ -1,4 +1,7 @@
-import React, { useEffect, useState } from 'react'
+with open("frontend/src/components/MetricsChart.tsx", "r") as f:
+    text = f.read()
+
+import_str = """import React, { useEffect, useState } from 'react'
 import {
   LineChart,
   Line,
@@ -9,7 +12,7 @@ import {
   Legend,
 } from 'recharts'
 import { fetchHistory } from '../services/api'
-import type { Container } from '../services/api'
+import { Container } from '../services/api'
 
 interface Props {
   containers?: Container[]
@@ -108,3 +111,7 @@ const MetricsChart: React.FC<Props> = ({ containers = [], limit = 200 }) => {
 }
 
 export default MetricsChart
+"""
+
+with open("frontend/src/components/MetricsChart.tsx", "w") as f:
+    f.write(import_str)

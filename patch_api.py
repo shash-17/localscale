@@ -1,24 +1,29 @@
-import re
-
 with open("frontend/src/services/api.ts", "r") as f:
     content = f.read()
 
-appendix = """
-export async function fetchPolicies(): Promise<any[]> {
-  try {
-    const { data } = await api.get<any[]>('/policies')
-    return data
-  } catch(e) {
-    return []
-  }
+content = content.replace("ports?: Record<string, any>", "ports?: Record<string, any>\n  environment?: Record<string, string>")
+
+extras = """
+
+export async function stopContainer(id: string): Promise<any> {
+  const { data } = await api.post(`/containers/${id}/stop`)
+  return data
 }
 
-export async function addPolicy(policy: string): Promise<any> {
-  const { data } = await api.post('/policies', { policy })
+export async function startContainer(id: string): Promise<any> {
+  const { data } = await api.post(`/containers/${id}/start`)
+  return data
+}
+
+export async function removeContainer(id: string): Promise<any> {
+  const { data } = await api.delete(`/containers/${id}`)
   return data
 }
 """
 
-if "fetchPolicies" not in content:
-    with open("frontend/src/services/api.ts", "a") as f:
-        f.write(appendix)
+if "stopContainer" not in content:
+    content += extras
+
+with open("frontend/src/services/api.ts", "w") as f:
+    f.write(content)
+
