@@ -4,7 +4,7 @@ import type { Container, Stats } from '../services/api'
 
 interface Props {
   selected?: string[]
-  onSelect?: (name: string) => void
+  onViewDetails?: (name: string) => void
   containers?: Container[]
 }
 
@@ -25,7 +25,7 @@ function parseMemoryPercent(mem: string | undefined): number | null {
   return null
 }
 
-const ContainerList: React.FC<Props> = ({ selected, onSelect, containers: propContainers }) => {
+const ContainerList: React.FC<Props> = ({ selected, onViewDetails, containers: propContainers }) => {
   const [containers, setContainers] = useState<Container[]>(propContainers ?? [])
   const [statsMap, setStatsMap] = useState<Record<string, Stats | null>>({})
   const [loading, setLoading] = useState(false)
@@ -107,44 +107,53 @@ const ContainerList: React.FC<Props> = ({ selected, onSelect, containers: propCo
           const s = statsMap[c.id]
           const cpu = s?.cpu_percent ?? null
           const memPct = parseMemoryPercent(s?.memory)
-          const isSelected = selected?.includes(c.name)
-
           return (
             <div
               key={c.id}
-              onClick={() => onSelect && onSelect(c.name)}
-              className={`p-4 border rounded-lg cursor-pointer bg-white dark:bg-gray-800 transition ${
-                isSelected ? 'ring-2 ring-indigo-500 border-indigo-500' : 'border-gray-200 dark:border-gray-700'
-              }`}
+              onClick={() => onViewDetails && onViewDetails(c.name)}
+              className="neu-raised p-5 rounded-[var(--neu-radius)] cursor-pointer transition-transform hover:scale-[1.02]"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <span
-                    className={`inline-block w-3 h-3 rounded-full mr-2 ${
+                    className={`inline-block w-3 h-3 rounded-full mr-3 shadow-sm ${
                       c.status === 'running' ? 'bg-green-500' : 'bg-red-500'
                     }`}
                   />
-                  <h3 className="font-medium">{c.name}</h3>
+                  <h3 className="font-semibold text-[var(--neu-text)]">{c.name}</h3>
                 </div>
-                <div className="text-xs text-gray-500 font-mono truncate max-w-[100px]">{c.image.split(':')[0]}</div>
+                <div className="flex flex-col items-end gap-1">
+                  <div className="text-xs text-[var(--neu-text-muted)] font-mono truncate max-w-[100px]">{c.image.split(':')[0]}</div>
+                  {c.ports && c.ports.length > 0 && (
+                     <a 
+                       href={`http://localhost:${c.ports[0].split('->')[0]}`} 
+                       target="_blank" 
+                       rel="noopener noreferrer"
+                       className="text-[10px] bg-[var(--neu-accent)] text-white px-1.5 py-0.5 rounded font-mono hover:opacity-80 transition-opacity"
+                       onClick={(e) => e.stopPropagation()}
+                     >
+                       {c.ports[0]}
+                     </a>
+                  )}
+                </div>
               </div>
 
-              <div className="mt-3 flex justify-between text-sm">
+              <div className="mt-4 flex justify-between text-sm text-[var(--neu-text-secondary)]">
                 <div>
-                  CPU: <span className="font-medium">{cpu !== null ? `${cpu.toFixed(1)}%` : '—'}</span>
+                  CPU: <span className="font-medium text-[var(--neu-text)]">{cpu !== null ? `${cpu.toFixed(1)}%` : '—'}</span>
                 </div>
                 <div>
-                  Mem: <span className="font-medium">{memPct !== null ? `${memPct}%` : '—'}</span>
+                  Mem: <span className="font-medium text-[var(--neu-text)]">{memPct !== null ? `${memPct}%` : '—'}</span>
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t dark:border-gray-700 flex justify-end gap-2 text-xs">
+              <div className="mt-5 pt-4 border-t border-[rgba(0,0,0,0.05)] flex justify-end gap-3 text-xs">
                 {c.status !== 'running' ? (
-                  <button onClick={(e) => handleAction(e, 'start', c.id)} className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded">Start</button>
+                  <button onClick={(e) => handleAction(e, 'start', c.id)} className="neu-btn px-4 py-2 font-semibold text-green-600 rounded-[var(--neu-radius-xs)]">Start</button>
                 ) : (
-                  <button onClick={(e) => handleAction(e, 'stop', c.id)} className="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-white rounded">Stop</button>
+                  <button onClick={(e) => handleAction(e, 'stop', c.id)} className="neu-btn px-4 py-2 font-semibold text-yellow-600 rounded-[var(--neu-radius-xs)]">Stop</button>
                 )}
-                <button onClick={(e) => handleAction(e, 'remove', c.id)} className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded">Remove</button>
+                <button onClick={(e) => handleAction(e, 'remove', c.id)} className="neu-btn px-4 py-2 font-semibold text-red-500 rounded-[var(--neu-radius-xs)]">Remove</button>
               </div>
             </div>
           )

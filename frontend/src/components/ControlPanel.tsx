@@ -1,16 +1,20 @@
 import React, { useState } from 'react'
-import { deployService, scaleService } from '../services/api'
+import { deployService, scaleService, startContainer, stopContainer, removeContainer } from '../services/api'
 
 interface Props {
   onDone?: () => void
+  containerName?: string
+  containerId?: string
+  containerStatus?: string
 }
 
-const ControlPanel: React.FC<Props> = ({ onDone }) => {
+const ControlPanel: React.FC<Props> = ({ onDone, containerName, containerId, containerStatus }) => {
   const [image, setImage] = useState('nginx:alpine')
-  const [name, setName] = useState('test')
+  const [name, setName] = useState('web')
   const [replicas, setReplicas] = useState<number>(1)
   const [envVars, setEnvVars] = useState('')
-  const [scaleName, setScaleName] = useState('')
+  const [portMapping, setPortMapping] = useState('8080:80')
+  const [scaleName, setScaleName] = useState(containerName || '')
   const [scaleReplicas, setScaleReplicas] = useState<number>(1)
   const [status, setStatus] = useState<string | null>(null)
 
@@ -26,7 +30,19 @@ const ControlPanel: React.FC<Props> = ({ onDone }) => {
           if (k && k.trim()) environment![k.trim()] = v.join('=').trim()
         })
       }
-      await deployService({ image, name, replicas, environment })
+      
+      let portsMap: Record<string, string> | undefined = undefined;
+      if (portMapping) {
+        portsMap = {}
+        portMapping.split(',').forEach(p => {
+           const [host, container] = p.split(':')
+           if (host && container) {
+              portsMap[`${container.trim()}/tcp`] = host.trim()
+           }
+        })
+      }
+      
+      await deployService({ image, name, replicas, environment, ports: portsMap })
       setStatus('Deployed')
       onDone && onDone()
     } catch (err: any) {
@@ -48,31 +64,120 @@ const ControlPanel: React.FC<Props> = ({ onDone }) => {
     setTimeout(() => setStatus(null), 3000)
   }
 
+  async function handleLifecycle(action: 'start' | 'stop' | 'remove') {
+    if (!containerId) return
+    setStatus(`${action === 'remove' ? 'Removing' : action === 'start' ? 'Starting' : 'Stopping'}...`)
+    try {
+      if (action === 'start') await startContainer(containerId)
+      else if (action === 'stop') await stopContainer(containerId)
+      else if (action === 'remove') await removeContainer(containerId)
+      
+      setStatus(`Successfully ${action}ed`)
+      if (action === 'remove' && onDone) {
+        // give it a tiny delay on remove before refresh to let react router or parent redirect back easily
+        setTimeout(() => onDone(), 500)
+      } else {
+        onDone && onDone()
+      }
+    } catch (err: any) {
+      setStatus('Error: ' + (err?.message || `${action} failed`))
+    }
+    setTimeout(() => setStatus(null), 3000)
+  }
+
+  const TEMPLATES = [
+    { label: 'Web Server', image: 'nginx:alpine', name: 'web', env: '', ports: '8080:80' },
+    { label: 'Database', image: 'postgres:15-alpine', name: 'db', env: 'POSTGRES_PASSWORD=secret\nPOSTGRES_USER=admin', ports: '5432:5432' },
+    { label: 'Cache', image: 'redis:alpine', name: 'cache', env: '', ports: '6379:6379' },
+  ]
+
+  function applyTemplate(t: typeof TEMPLATES[0]) {
+    setImage(t.image)
+    setName(t.name)
+    setEnvVars(t.env)
+    setPortMapping(t.ports)
+    setReplicas(1)
+  }
+
   return (
-    <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border space-y-4">
-      <h3 className="text-lg font-medium">Controls</h3>
+    <div className="neu-raised p-6 rounded-[var(--neu-radius)] space-y-6">
+      <h3 className="text-lg font-semibold text-[var(--neu-text)]">Controls</h3>
 
-      <form onSubmit={handleDeploy} className="space-y-2">
-        <div className="text-sm font-semibold">Deploy</div>
-        <div className="flex gap-2">
-          <input value={image} onChange={(e) => setImage(e.target.value)} className="border px-2 py-1 flex-1" placeholder="image:tag" />
-          <input value={name} onChange={(e) => setName(e.target.value)} className="border px-2 py-1 w-32" placeholder="name" />
-          <input type="number" value={replicas} onChange={(e) => setReplicas(Number(e.target.value))} className="border px-2 py-1 w-16" min={1} />
+      {!containerName && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {TEMPLATES.map(t => (
+                <button 
+                  key={t.name} 
+                  type="button" 
+                  onClick={() => applyTemplate(t)} 
+                  className="neu-raised p-4 text-left hover:scale-[1.02] transition-transform group"
+                >
+                  <div className="text-xs font-bold text-[var(--neu-accent)] mb-1 uppercase tracking-widest group-hover:text-[var(--neu-accent-hover)]">Template</div>
+                  <div className="text-base font-bold text-[var(--neu-text)] mb-1">{t.label}</div>
+                  <div className="text-[10px] font-mono text-[var(--neu-text-muted)] truncate">{t.image}</div>
+                </button>
+              ))}
+          </div>
+
+          <form onSubmit={handleDeploy} className="neu-inset p-6 rounded-[var(--neu-radius)] space-y-4">
+            <div className="text-sm font-bold text-[var(--neu-text-muted)] uppercase tracking-widest mb-2">Custom Configuration</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[var(--neu-text-muted)] uppercase ml-1">Image Source</label>
+                <input value={image} onChange={(e) => setImage(e.target.value)} className="neu-inset bg-transparent border-none outline-none px-3 py-2.5 w-full rounded-[var(--neu-radius-xs)] text-[var(--neu-text)] font-mono text-sm" placeholder="image:tag" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[var(--neu-text-muted)] uppercase ml-1">Service Identifier</label>
+                <input value={name} onChange={(e) => setName(e.target.value)} className="neu-inset bg-transparent border-none outline-none px-3 py-2.5 w-full rounded-[var(--neu-radius-xs)] text-[var(--neu-text)]" placeholder="name" />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[var(--neu-text-muted)] uppercase ml-1">Instance Count</label>
+                <input type="number" value={replicas} onChange={(e) => setReplicas(Number(e.target.value))} className="neu-inset bg-transparent border-none outline-none px-3 py-2.5 w-full rounded-[var(--neu-radius-xs)] text-[var(--neu-text)]" min={1} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[var(--neu-text-muted)] uppercase ml-1">Port Bindings (Host:Guest)</label>
+                <input value={portMapping} onChange={(e) => setPortMapping(e.target.value)} className="neu-inset bg-transparent border-none outline-none px-3 py-2.5 w-full rounded-[var(--neu-radius-xs)] text-[var(--neu-text)] text-sm font-mono" placeholder="8080:80" />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-[var(--neu-text-muted)] uppercase ml-1">Environment Variables</label>
+              <textarea value={envVars} onChange={(e) => setEnvVars(e.target.value)} className="neu-inset bg-transparent border-none outline-none px-4 py-3 w-full text-xs font-mono h-28 rounded-[var(--neu-radius-xs)] text-[var(--neu-text)] resize-none" placeholder={`KEY=value\nOTHER_KEY=something`} />
+            </div>
+            
+            <button className="neu-btn text-[var(--neu-accent)] font-bold px-4 py-3 rounded-[var(--neu-radius-xs)] w-full text-sm">Deploy Configured Stack</button>
+          </form>
         </div>
-        <textarea value={envVars} onChange={(e) => setEnvVars(e.target.value)} className="border px-2 py-1 w-full text-sm font-mono h-16" placeholder={`KEY=value\nOTHER_KEY=something`} />
-        <button className="bg-indigo-600 text-white px-3 py-1 rounded w-full">Deploy Configured Container</button>
+      )}
+
+      <form onSubmit={handleScale} className="space-y-3">
+        <div className="text-sm font-semibold text-[var(--neu-text)]">Scale Resources</div>
+        <div className="flex gap-3">
+          <input value={scaleName} onChange={(e) => setScaleName(e.target.value)} disabled={!!containerName} className="neu-inset bg-transparent border-none outline-none px-3 py-2 flex-1 disabled:opacity-60 rounded-[var(--neu-radius-xs)] text-[var(--neu-text)]" placeholder="service base name (e.g. web)" />
+          <input type="number" value={scaleReplicas} onChange={(e) => setScaleReplicas(Number(e.target.value))} className="neu-inset bg-transparent border-none outline-none px-3 py-2 w-24 rounded-[var(--neu-radius-xs)] text-[var(--neu-text)]" min={0} />
+          <button className="neu-btn text-[var(--neu-accent)] font-bold px-4 py-2 rounded-[var(--neu-radius-xs)]">Scale</button>
+        </div>
       </form>
 
-      <form onSubmit={handleScale} className="space-y-2">
-        <div className="text-sm font-semibold">Scale</div>
-        <div className="flex gap-2">
-          <input value={scaleName} onChange={(e) => setScaleName(e.target.value)} className="border px-2 py-1 flex-1" placeholder="service base name (e.g. web)" />
-          <input type="number" value={scaleReplicas} onChange={(e) => setScaleReplicas(Number(e.target.value))} className="border px-2 py-1 w-24" min={0} />
-          <button className="bg-indigo-600 text-white px-3 py-1 rounded">Scale</button>
+      {containerId && (
+        <div className="space-y-3 pt-2">
+          <div className="text-sm font-semibold text-[var(--neu-text)]">Lifecycle Configuration</div>
+          <div className="flex gap-3">
+            {containerStatus !== 'running' ? (
+              <button onClick={() => handleLifecycle('start')} className="neu-btn px-4 py-2 font-medium text-green-600 flex-1 rounded-[var(--neu-radius-xs)]">Start Container</button>
+            ) : (
+              <button onClick={() => handleLifecycle('stop')} className="neu-btn px-4 py-2 font-medium text-yellow-600 flex-1 rounded-[var(--neu-radius-xs)]">Stop Container</button>
+            )}
+            <button onClick={() => handleLifecycle('remove')} className="neu-btn px-4 py-2 font-medium text-red-500 rounded-[var(--neu-radius-xs)]">Remove</button>
+          </div>
         </div>
-      </form>
+      )}
 
-      {status && <div className="text-sm text-gray-600">{status}</div>}
+      {status && <div className="text-sm font-medium text-[var(--neu-text-secondary)] mt-2">{status}</div>}
     </div>
   )
 }

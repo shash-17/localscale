@@ -10,24 +10,44 @@ import {
   ChevronLeft,
   Menu,
   X,
+  PlusSquare,
 } from 'lucide-react'
 import ContainerList from '../components/ContainerList'
 import MetricsChart from '../components/MetricsChart'
 import EconomicsPanel from '../components/EconomicsPanel'
 import ControlPanel from '../components/ControlPanel'
 import PolicyPanel from '../components/PolicyPanel'
+import LogViewer from '../components/LogViewer'
 import { fetchContainers } from '../services/api'
 import type { Container } from '../services/api'
 import './Dashboard.css'
 
-type Nav = 'dashboard' | 'economics' | 'settings'
+type Nav = 'dashboard' | 'control' | 'container_details'
 
 export default function Dashboard() {
   const [containers, setContainers] = useState<Container[]>([])
-  const [selected, setSelected] = useState<string[]>([])
+  const [activeContainer, setActiveContainer] = useState<Container | null>(null)
   const [nav, setNav] = useState<Nav>('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const navigate = useNavigate()
+
+  async function reloadNow(currentContainers?: Container[]) {
+    try {
+      const cs = await fetchContainers()
+      setContainers(cs)
+      setActiveContainer(prev => {
+        if (!prev) return null
+        const updated = cs.find(c => c.name === prev.name)
+        if (!updated) {
+          setNav('dashboard')
+          return null
+        }
+        return updated
+      })
+    } catch (e) {
+      console.error('reload failed', e)
+    }
+  }
 
   useEffect(() => {
     let mounted = true
@@ -36,9 +56,15 @@ export default function Dashboard() {
         const cs = await fetchContainers()
         if (!mounted) return
         setContainers(cs)
-        if (selected.length === 0 && cs.length > 0) {
-          setSelected(cs.map((c) => c.name))
-        }
+        setActiveContainer(prev => {
+          if (!prev) return null
+          const updated = cs.find(c => c.name === prev.name)
+          if (!updated) {
+            setNav('dashboard')
+            return null
+          }
+          return updated
+        })
       } catch (e) {
         console.error('failed to fetch containers', e)
       }
@@ -46,27 +72,19 @@ export default function Dashboard() {
     load()
     const iv = setInterval(load, 5000)
     return () => { mounted = false; clearInterval(iv) }
-  }, [selected])
+  }, [])
 
-  function handleSelect(name: string) {
-    setSelected((prev) =>
-      prev.includes(name) ? prev.filter((p) => p !== name) : [...prev, name]
-    )
-  }
-
-  async function reloadNow() {
-    try {
-      const cs = await fetchContainers()
-      setContainers(cs)
-    } catch (e) {
-      console.error('reload failed', e)
+  function handleContainerClick(name: string) {
+    const c = containers.find(x => x.name === name);
+    if (c) {
+      setActiveContainer(c);
+      setNav('container_details');
     }
   }
 
   const navItems: { key: Nav; label: string; icon: React.ReactNode }[] = [
     { key: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
-    { key: 'economics', label: 'Economics', icon: <DollarSign size={18} /> },
-    { key: 'settings', label: 'Policies', icon: <Settings size={18} /> },
+    { key: 'control', label: 'Deploy Modules', icon: <PlusSquare size={18} /> },
   ]
 
   return (
@@ -155,57 +173,107 @@ export default function Dashboard() {
                   </button>
                 </div>
               </div>
-
-              {/* Economics summary */}
-              <div className="dash-economics-bar">
-                <EconomicsPanel />
+              
+              {/* High-density Status Bar */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                 <div className="neu-raised p-4 rounded-[var(--neu-radius-sm)] flex items-center justify-between">
+                    <div>
+                        <div className="text-[10px] uppercase tracking-wider font-bold text-[var(--neu-text-muted)]">Active Fleet</div>
+                        <div className="text-xl font-bold text-[var(--neu-text)]">{containers.filter(c => c.status === 'running').length} <span className="text-xs font-medium text-green-500">Live</span></div>
+                    </div>
+                 </div>
+                 <div className="neu-raised p-4 rounded-[var(--neu-radius-sm)] flex items-center justify-between">
+                    <div>
+                        <div className="text-[10px] uppercase tracking-wider font-bold text-[var(--neu-text-muted)]">Resource Idle</div>
+                        <div className="text-xl font-bold text-[var(--neu-text)]">{containers.filter(c => c.status !== 'running').length} <span className="text-xs font-medium text-red-400">Nodes</span></div>
+                    </div>
+                 </div>
+                 <div className="neu-raised p-4 rounded-[var(--neu-radius-sm)] col-span-2 flex items-center justify-center">
+                    <EconomicsPanel minimal={true} limit={1} />
+                 </div>
               </div>
+
+              {/* Economics summary - removed old redundant one */}
 
               <div className="dash-grid">
                 <div className="dash-grid-main">
                   <ContainerList
                     containers={containers}
-                    selected={selected}
-                    onSelect={handleSelect}
+                    onViewDetails={handleContainerClick}
                   />
                 </div>
                 <div className="dash-grid-side">
                   <div className="dash-chart-card">
                     <MetricsChart
-                      containers={containers.filter((c) => selected.includes(c.name))}
+                      containers={containers}
                     />
                   </div>
-                  <ControlPanel onDone={reloadNow} />
                 </div>
               </div>
             </>
           )}
 
-          {nav === 'economics' && (
+          {nav === 'control' && (
             <>
               <div className="dash-page-header">
                 <div>
-                  <h1 className="dash-page-title">Economics & Scale</h1>
-                  <p className="dash-page-desc">Cost and carbon metrics for your infrastructure</p>
+                  <h1 className="dash-page-title">Deploy & Scale</h1>
+                  <p className="dash-page-desc">Provision new containers and configure existing resource limits</p>
                 </div>
               </div>
-              <div className="dash-eco-grid">
-                <EconomicsPanel />
+              <div className="dash-eco-grid w-full lg:max-w-3xl">
+                <ControlPanel onDone={() => { reloadNow(); setNav('dashboard') }} />
               </div>
             </>
           )}
 
-          {nav === 'settings' && (
+          {nav === 'container_details' && activeContainer && (
             <>
               <div className="dash-page-header">
                 <div>
-                  <h1 className="dash-page-title">Governance & Policies</h1>
-                  <p className="dash-page-desc">Define rules to manage resource usage automatically</p>
+                  <h1 className="dash-page-title">{activeContainer.name}</h1>
+                  <p className="dash-page-desc flex items-center gap-2">
+                    <span className={`inline-block w-2.5 h-2.5 rounded-full ${activeContainer.status === 'running' ? 'bg-green-500' : 'bg-red-500'}`} />
+                    {activeContainer.status} • {activeContainer.image}
+                  </p>
+                </div>
+                <div className="dash-page-actions">
+                  <button className="dash-btn-outline" onClick={() => setNav('dashboard')}>
+                    <ChevronLeft size={14} /> Back to Dashboard
+                  </button>
+                  <button className="dash-btn-outline" onClick={reloadNow}>
+                    <RefreshCw size={14} /> Refresh
+                  </button>
                 </div>
               </div>
-              <PolicyPanel />
+
+              <div className="dash-economics-bar">
+                <EconomicsPanel containerName={activeContainer.name} />
+              </div>
+
+              <div className="dash-grid-detail mb-6">
+                <div className="dash-grid-main space-y-6">
+                   <PolicyPanel containerName={activeContainer.name} />
+                   <LogViewer containerId={activeContainer.id} containerName={activeContainer.name} />
+                </div>
+                <div className="dash-grid-side space-y-6">
+                  <div className="dash-chart-card">
+                    <MetricsChart
+                      containers={[activeContainer]}
+                    />
+                  </div>
+                  <ControlPanel 
+                    onDone={reloadNow} 
+                    containerName={activeContainer.name} 
+                    containerId={activeContainer.id}
+                    containerStatus={activeContainer.status}
+                  />
+                </div>
+              </div>
             </>
           )}
+
+
         </div>
       </main>
     </div>

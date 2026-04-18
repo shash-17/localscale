@@ -267,6 +267,12 @@
   gap: 1.5rem;
 }
 
+.dash-grid-detail {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 1.5rem;
+}
+
 .dash-grid-side {
   display: flex;
   flex-direction: column;
@@ -274,13 +280,7 @@
 }
 
 .dash-chart-card {
-  border-radius: var(--neu-radius);
-  box-shadow: 4px 4px 10px var(--neu-shadow-dark),
-              -4px -4px 10px var(--neu-shadow-light);
-  background: var(--neu-bg);
-  padding: 0.75rem;
   height: 280px;
-  border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
 .dash-eco-grid {
@@ -354,7 +354,7 @@
     background: rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(4px);
   }
-  .dash-grid {
+  .dash-grid, .dash-grid-detail {
     grid-template-columns: 1fr;
   }
   .dash-chart-card {

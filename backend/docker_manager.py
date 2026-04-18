@@ -16,11 +16,21 @@ class ContainerManager:
             containers = self.client.containers.list()
             result = []
             for c in containers:
+                # Extract port mappings, e.g. {'80/tcp': [{'HostPort': '8080'}]} -> '8080'
+                port_mappings = []
+                if c.ports:
+                    for container_port, host_bindings in c.ports.items():
+                        if host_bindings:
+                            for binding in host_bindings:
+                                if 'HostPort' in binding:
+                                    port_mappings.append(f"{binding['HostPort']}->{container_port.split('/')[0]}")
+                
                 result.append({
                     'ID': c.id,
                     'Name': c.name,
                     'Status': c.status,
-                    'Image': c.image.tags[0] if c.image.tags else c.image.short_id
+                    'Image': c.image.tags[0] if c.image.tags else c.image.short_id,
+                    'Ports': port_mappings
                 })
             return result
         except DockerException as e:
@@ -158,3 +168,14 @@ class ContainerManager:
         except Exception as e:
             print(f"Error removing container {container_id}: {e}")
             return False
+
+    def get_container_logs(self, container_id, tail=100):
+        if not self.client:
+            return ""
+        try:
+            container = self.client.containers.get(container_id)
+            logs = container.logs(tail=tail, stdout=True, stderr=True)
+            return logs.decode('utf-8')
+        except Exception as e:
+            print(f"Error getting logs for container {container_id}: {e}")
+            return str(e)

@@ -59,6 +59,7 @@ class ContainerInfo(BaseModel):
     name: str
     status: str
     image: str
+    ports: Optional[List[str]] = []
 
 
 class ContainerStats(BaseModel):
@@ -166,6 +167,7 @@ def list_containers():
             "name": c.get("Name") or c.get("name") or "",
             "status": c.get("Status") or c.get("status") or "",
             "image": c.get("Image") or c.get("image") or "",
+            "ports": c.get("Ports") or []
         })
     return converted
 
@@ -203,6 +205,12 @@ def start_existing_container(container_id: str):
         raise HTTPException(status_code=500, detail="Failed to start container")
     return {"status": "ok"}
 
+@app.get("/containers/{container_id}/logs")
+def get_logs(container_id: str, tail: int = 100):
+    docker_required()
+    logs = manager.get_container_logs(container_id, tail=tail)
+    return {"logs": logs}
+
 @app.delete("/containers/{container_id}")
 def remove_container(container_id: str):
     docker_required()
@@ -227,7 +235,7 @@ def scale(req: ScaleRequest):
 
 
 @app.get("/metrics/history", response_model=List[MetricEntry])
-def metrics_history(limit: int = 100):
+def metrics_history(limit: int = 100, container_name: Optional[str] = None):
     if not os.path.exists(DB_PATH):
         return []
     conn = None
@@ -235,10 +243,16 @@ def metrics_history(limit: int = 100):
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
-        cur.execute(
-            "SELECT id, container_name, cpu_pct, mem_mb, timestamp, estimated_cost, carbon_g FROM metrics_history ORDER BY timestamp DESC LIMIT ?",
-            (limit,),
-        )
+        if container_name:
+            cur.execute(
+                "SELECT id, container_name, cpu_pct, mem_mb, timestamp, estimated_cost, carbon_g FROM metrics_history WHERE container_name = ? ORDER BY timestamp DESC LIMIT ?",
+                (container_name, limit),
+            )
+        else:
+            cur.execute(
+                "SELECT id, container_name, cpu_pct, mem_mb, timestamp, estimated_cost, carbon_g FROM metrics_history ORDER BY timestamp DESC LIMIT ?",
+                (limit,),
+            )
         rows = cur.fetchall()
         out = []
         for r in rows:

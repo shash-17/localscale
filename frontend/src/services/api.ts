@@ -11,6 +11,7 @@ export interface Container {
   name: string
   status: string
   image: string
+  ports?: string[]
 }
 
 export interface Stats {
@@ -62,8 +63,11 @@ export async function scaleService(req: ScaleRequest): Promise<any> {
   return data
 }
 
-export async function fetchHistory(limit = 100): Promise<MetricHistory[]> {
-  const { data } = await api.get<MetricHistory[]>(`/metrics/history?limit=${limit}`)
+export async function fetchHistory(limit = 100, containerName?: string): Promise<MetricHistory[]> {
+  const url = containerName 
+    ? `/metrics/history?limit=${limit}&container_name=${encodeURIComponent(containerName)}`
+    : `/metrics/history?limit=${limit}`
+  const { data } = await api.get<MetricHistory[]>(url)
   return data
 }
 
@@ -97,4 +101,9 @@ export async function startContainer(id: string): Promise<any> {
 export async function removeContainer(id: string): Promise<any> {
   const { data } = await api.delete(`/containers/${id}`)
   return data
+}
+
+export async function fetchLogs(id: string, tail = 100): Promise<string> {
+  const { data } = await api.get<{ logs: string }>(`/containers/${id}/logs?tail=${tail}`)
+  return data.logs
 }

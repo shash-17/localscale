@@ -1,94 +1,13 @@
 /* ═══════════════════════════════════════
-   LocalScale — App-Level Overrides
+   LocalScale — App-Level Global Resets
    ═══════════════════════════════════════ */
 
-/* Override existing component styles to match neumorphic design */
-
-/* Container cards */
-.dash-grid-main .p-4.border.rounded-lg {
-  background: var(--neu-bg) !important;
-  border: 1px solid rgba(255, 255, 255, 0.4) !important;
-  box-shadow: 4px 4px 10px var(--neu-shadow-dark),
-              -4px -4px 10px var(--neu-shadow-light);
-  border-radius: var(--neu-radius) !important;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+/* Recharts responsive container fix */
+.recharts-responsive-container {
+  border-radius: var(--neu-radius-sm);
 }
 
-.dash-grid-main .p-4.border.rounded-lg:hover {
-  box-shadow: 6px 6px 14px var(--neu-shadow-dark),
-              -6px -6px 14px var(--neu-shadow-light);
-}
-
-.dash-grid-main .ring-2.ring-indigo-500 {
-  box-shadow: inset 3px 3px 8px var(--neu-shadow-dark),
-              inset -3px -3px 8px var(--neu-shadow-light) !important;
-  border-color: var(--neu-accent) !important;
-}
-
-/* Panels */
-.p-4.bg-white.rounded-lg.border,
-.p-4.bg-white.dark\\:bg-gray-900.rounded-lg.border,
-.bg-white.dark\\:bg-gray-800.p-6.rounded-lg.border {
-  background: var(--neu-bg) !important;
-  border: 1px solid rgba(255, 255, 255, 0.4) !important;
-  box-shadow: 4px 4px 10px var(--neu-shadow-dark),
-              -4px -4px 10px var(--neu-shadow-light);
-  border-radius: var(--neu-radius) !important;
-}
-
-/* Inputs */
-input.border,
-textarea.border,
-select.border {
-  background: var(--neu-bg) !important;
-  border: 1px solid rgba(0, 0, 0, 0.06) !important;
-  box-shadow: inset 2px 2px 5px var(--neu-shadow-dark),
-              inset -2px -2px 5px var(--neu-shadow-light);
-  border-radius: var(--neu-radius-xs) !important;
-  padding: 0.5rem 0.75rem;
-  color: var(--neu-text);
-  transition: all 0.2s ease;
-  font-family: var(--neu-font);
-}
-
-input.border:focus,
-textarea.border:focus,
-select.border:focus {
-  outline: none;
-  box-shadow: inset 2px 2px 5px var(--neu-shadow-dark),
-              inset -2px -2px 5px var(--neu-shadow-light),
-              0 0 0 2px var(--neu-accent-glow);
-}
-
-/* Buttons (indigo overrides) */
-.bg-indigo-600 {
-  background: var(--neu-accent) !important;
-  border: none !important;
-  box-shadow: 3px 3px 8px var(--neu-shadow-dark),
-              -2px -2px 6px var(--neu-shadow-light),
-              0 2px 12px var(--neu-accent-glow);
-  border-radius: var(--neu-radius-xs) !important;
-  font-weight: 600;
-  transition: all 0.25s ease;
-}
-
-.bg-indigo-600:hover {
-  background: var(--neu-accent-hover) !important;
-  transform: translateY(-1px);
-}
-
-/* Action buttons */
-.bg-green-500,
-.bg-yellow-500,
-.bg-red-500 {
-  border: none !important;
-  box-shadow: 2px 2px 5px var(--neu-shadow-dark);
-  border-radius: var(--neu-radius-xs) !important;
-  font-weight: 600;
-  transition: all 0.2s ease;
-}
-
-/* Status dots */
+/* Status dots glow */
 .bg-green-500.rounded-full {
   box-shadow: 0 0 6px rgba(5, 150, 105, 0.4);
 }
@@ -97,66 +16,12 @@ select.border:focus {
   box-shadow: 0 0 6px rgba(220, 38, 38, 0.4);
 }
 
-/* Chart container */
-.w-full.h-full.bg-white.rounded-lg {
-  background: var(--neu-bg) !important;
+/* Remove default number input arrows for clean look */
+input[type="number"]::-webkit-inner-spin-button, 
+input[type="number"]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
 }
-
-/* Headings */
-.text-2xl.font-semibold,
-.text-xl.font-semibold,
-.text-lg.font-semibold,
-.text-lg.font-medium {
-  color: var(--neu-text);
-  letter-spacing: -0.01em;
-}
-
-/* Text overrides for neumorphic bg */
-.text-gray-500 {
-  color: var(--neu-text-secondary) !important;
-}
-
-.text-gray-600 {
-  color: var(--neu-text-secondary) !important;
-}
-
-.text-3xl.font-extrabold {
-  color: var(--neu-text) !important;
-}
-
-/* Borders */
-.border-t,
-.border-b {
-  border-color: rgba(0, 0, 0, 0.04) !important;
-}
-
-/* Policy panel overrides */
-.bg-gray-50,
-.bg-indigo-50 {
-  background: var(--neu-bg) !important;
-  box-shadow: inset 2px 2px 5px var(--neu-shadow-dark),
-              inset -2px -2px 5px var(--neu-shadow-light);
-}
-
-.bg-indigo-100.text-indigo-700 {
-  background: var(--neu-accent-soft) !important;
-  color: var(--neu-accent) !important;
-}
-
-.bg-slate-600 {
-  background: #475569 !important;
-  border: none !important;
-  box-shadow: 3px 3px 8px var(--neu-shadow-dark),
-              -2px -2px 6px var(--neu-shadow-light);
-  border-radius: var(--neu-radius-xs) !important;
-  font-weight: 600;
-}
-
-.bg-slate-600:hover {
-  background: #334155 !important;
-}
-
-/* Recharts responsive container fix */
-.recharts-responsive-container {
-  border-radius: var(--neu-radius-sm);
+input[type="number"] {
+  -moz-appearance: textfield;
 }

@@ -20,7 +20,7 @@ const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#0088FE', '#00C49F'
 
 const MetricsChart: React.FC<Props> = ({ containers = [], limit = 200 }) => {
   const [data, setData] = useState<Array<any>>([])
-  const [metricType, setMetricType] = useState<'cpu' | 'mem'>('cpu')
+  const [metricType, setMetricType] = useState<'cpu' | 'mem' | 'cost' | 'carbon'>('cost')
 
   useEffect(() => {
     let mounted = true
@@ -41,6 +41,8 @@ const MetricsChart: React.FC<Props> = ({ containers = [], limit = 200 }) => {
           }
           grouped[t][`${m.container_name}_cpu`] = m.cpu_pct
           grouped[t][`${m.container_name}_mem`] = m.mem_mb
+          grouped[t][`${m.container_name}_cost`] = m.estimated_cost || 0
+          grouped[t][`${m.container_name}_carbon`] = m.carbon_g || 0
         }
         
         const merged = Object.values(grouped).reverse()
@@ -65,28 +67,47 @@ const MetricsChart: React.FC<Props> = ({ containers = [], limit = 200 }) => {
   const names = containers.map(c => c.name)
 
   return (
-    <div className="w-full h-full bg-white dark:bg-gray-900 rounded-lg flex flex-col">
-      <div className="flex justify-between items-center mb-2">
-        <h3 className="font-medium text-sm">Combined Metrics Tracker</h3>
+    <div className="w-full h-full neu-raised rounded-[var(--neu-radius)] flex flex-col p-5">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="font-semibold text-base text-[var(--neu-text)]">{containers.length === 1 ? 'Metrics Tracker' : 'Combined Metrics Tracker'}</h3>
         <select 
            value={metricType} 
            onChange={(e) => setMetricType(e.target.value as any)}
-           className="text-xs border rounded px-2 py-1 dark:bg-gray-800"
+           className="text-sm neu-inset bg-transparent border-none outline-none rounded-[var(--neu-radius-xs)] px-3 py-1.5 text-[var(--neu-text)]"
         >
-          <option value="cpu">CPU %</option>
-          <option value="mem">Memory (MB)</option>
+          <option value="cpu" className="bg-[var(--neu-bg)]">CPU %</option>
+          <option value="mem" className="bg-[var(--neu-bg)]">Memory (MB)</option>
+          <option value="cost" className="bg-[var(--neu-bg)]">Cost ($)</option>
+          <option value="carbon" className="bg-[var(--neu-bg)]">Carbon (g)</option>
         </select>
       </div>
 
       {data.length === 0 ? (
-        <div className="text-sm text-gray-500 flex-1 flex items-center justify-center">No metrics available yet.</div>
+        <div className="text-sm text-[var(--neu-text-muted)] flex-1 flex items-center justify-center">No metrics available yet.</div>
       ) : (
         <div className="flex-1 min-h-[0px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data}>
               <XAxis dataKey="time" tick={{fontSize: 10}} />
-              <YAxis unit={metricType === 'cpu' ? '%' : 'mb'} tick={{fontSize: 10}} />
-              <Tooltip />
+              <YAxis 
+                 tick={{fontSize: 10}} 
+                 tickFormatter={(val) => {
+                   if (metricType === 'cost') return `$${Number(val).toFixed(5)}`
+                   if (metricType === 'cpu') return `${val}%`
+                   if (metricType === 'mem') return `${val}mb`
+                   if (metricType === 'carbon') return `${val}g`
+                   return val
+                 }}
+              />
+              <Tooltip 
+                 formatter={(val: number) => {
+                   if (metricType === 'cost') return [`$${val.toFixed(6)}`, 'Cost']
+                   if (metricType === 'cpu') return [`${val}%`, 'CPU']
+                   if (metricType === 'mem') return [`${val} MB`, 'Mem']
+                   if (metricType === 'carbon') return [`${val} g`, 'Carbon']
+                   return val
+                 }}
+              />
               <Legend wrapperStyle={{fontSize: 11}} />
               {names.map((name, i) => (
                 <Line 
