@@ -44,14 +44,21 @@
   60% { transform: translateY(-5px) translateX(-50%); }
 }
 
-@keyframes orbit-slow {
-  from { transform: rotate(0deg) translateX(160px) rotate(0deg); }
-  to   { transform: rotate(360deg) translateX(160px) rotate(-360deg); }
+/* 3 orbit paths — each starts at 120° apart for even spacing */
+/* Counter-rotate keeps chip text upright */
+@keyframes orbit-1 {
+  from { transform: rotate(0deg)   translateX(180px) rotate(0deg);   }
+  to   { transform: rotate(360deg) translateX(180px) rotate(-360deg); }
 }
 
-@keyframes orbit-slow-reverse {
-  from { transform: rotate(0deg) translateX(130px) rotate(0deg); }
-  to   { transform: rotate(-360deg) translateX(130px) rotate(360deg); }
+@keyframes orbit-2 {
+  from { transform: rotate(120deg)  translateX(160px) rotate(-120deg);  }
+  to   { transform: rotate(480deg)  translateX(160px) rotate(-480deg);  }
+}
+
+@keyframes orbit-3 {
+  from { transform: rotate(240deg)  translateX(200px) rotate(-240deg);  }
+  to   { transform: rotate(600deg)  translateX(200px) rotate(-600deg);  }
 }
 
 @keyframes morph-blob {
@@ -354,22 +361,29 @@
   filter: drop-shadow(0 4px 12px var(--neu-accent-glow));
 }
 
-/* Orbiting elements */
+/* Orbiting elements — each chip orbits from the center of .landing-hero-visual */
 .landing-orbit-item {
   position: absolute;
   z-index: 3;
+  /* Center the item at the orb's center, then the animation moves it outward */
+  top: 50%;
+  left: 50%;
+  margin-top: -16px;
+  margin-left: -60px;
 }
 
-.landing-orbit-item:nth-child(2) {
-  animation: orbit-slow 18s linear infinite;
+/* 3 chips orbiting at different speeds, radii, and start angles */
+/* div children: 1=blob, 2=orb, 3/4/5=orbit-items */
+.landing-orbit-item:nth-of-type(3) {
+  animation: orbit-1 18s linear infinite;
 }
 
-.landing-orbit-item:nth-child(3) {
-  animation: orbit-slow-reverse 22s linear infinite;
+.landing-orbit-item:nth-of-type(4) {
+  animation: orbit-2 22s linear infinite;
 }
 
-.landing-orbit-item:nth-child(4) {
-  animation: orbit-slow 25s linear infinite reverse;
+.landing-orbit-item:nth-of-type(5) {
+  animation: orbit-3 25s linear infinite;
 }
 
 .landing-orbit-chip {
