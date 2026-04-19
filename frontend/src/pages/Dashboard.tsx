@@ -209,7 +209,7 @@ export default function Dashboard() {
                     </div>
                  </div>
                  <div className="neu-raised p-4 rounded-[var(--neu-radius-sm)] col-span-2 flex items-center justify-center">
-                    <EconomicsPanel minimal={true} limit={1} />
+                    <EconomicsPanel minimal={true} limit={120} />
                  </div>
               </div>
 

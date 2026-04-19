@@ -34,6 +34,19 @@ const REGIONS: Record<string, { label: string; gco2_kwh: number }> = {
 const W_PER_VCPU = 10.0
 const W_PER_GB_RAM = 0.5
 
+function formatCost(value: number): string {
+  if (value >= 1) return value.toFixed(2)
+  if (value >= 0.01) return value.toFixed(4)
+  return value.toFixed(6)
+}
+
+function formatCarbon(carbonG: number): { value: string; unit: string } {
+  if (carbonG >= 1000) {
+    return { value: (carbonG / 1000).toFixed(2), unit: 'kg CO₂' }
+  }
+  return { value: carbonG.toFixed(2), unit: 'g CO₂' }
+}
+
 const EconomicsPanel: React.FC<Props> = ({ metrics: initialMetrics, limit = 500, containerName, minimal }) => {
   const [fetchedMetrics, setFetchedMetrics] = useState<MetricHistory[] | null>(null)
   const [csp, setCsp] = useState('sim_default')
@@ -91,18 +104,19 @@ const EconomicsPanel: React.FC<Props> = ({ metrics: initialMetrics, limit = 500,
 
   // ── Minimal variant (used in status bar) ──
   if (minimal) {
+    const carbon = formatCarbon(totals.carbonG)
     return (
       <div className="flex items-center justify-around w-full">
         <div className="min-w-0">
           <div className="text-[10px] uppercase tracking-wider font-bold text-[var(--neu-text-muted)] mb-1">Network Cost</div>
           <div className="text-xl font-bold tracking-tight text-[var(--neu-text)] truncate">
-            ${totals.cost.toFixed(4)}
+            ${formatCost(totals.cost)}
           </div>
         </div>
         <div className="min-w-0">
           <div className="text-[10px] uppercase tracking-wider font-bold text-[var(--neu-text-muted)] mb-1">Carbon Est.</div>
           <div className="text-xl font-bold tracking-tight text-[var(--neu-text)] truncate">
-            {totals.carbonKg.toFixed(2)} <span className="text-[10px] text-[var(--neu-text-muted)] tracking-normal">kg CO₂</span>
+            {carbon.value} <span className="text-[10px] text-[var(--neu-text-muted)] tracking-normal">{carbon.unit}</span>
           </div>
         </div>
       </div>
