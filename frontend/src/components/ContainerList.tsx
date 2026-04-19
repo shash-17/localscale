@@ -12,20 +12,18 @@ function parseMemoryPercent(mem: string | undefined): number | null {
   if (!mem) return null
   const m = mem.match(/\(([0-9]+\.?[0-9]*)%\)/)
   if (m) return Number(m[1])
-  try {
-    const parts = mem.split('/')
-    if (parts.length >= 2) {
-      const usage = parseFloat(parts[0].trim().split(' ')[0])
-      const limit = parseFloat(parts[1].trim().split(' ')[0])
-      if (!isNaN(usage) && !isNaN(limit) && limit > 0) {
-        return Math.round((usage / limit) * 100) / 100
-      }
+  const parts = mem.split('/')
+  if (parts.length >= 2) {
+    const usage = parseFloat(parts[0].trim().split(' ')[0])
+    const limit = parseFloat(parts[1].trim().split(' ')[0])
+    if (!isNaN(usage) && !isNaN(limit) && limit > 0) {
+      return Math.round((usage / limit) * 100) / 100
     }
-  } catch (e) {}
+  }
   return null
 }
 
-const ContainerList: React.FC<Props> = ({ selected, onViewDetails, containers: propContainers }) => {
+const ContainerList: React.FC<Props> = ({ onViewDetails, containers: propContainers }) => {
   const [containers, setContainers] = useState<Container[]>(propContainers ?? [])
   const [statsMap, setStatsMap] = useState<Record<string, Stats | null>>({})
   const [loading, setLoading] = useState(false)

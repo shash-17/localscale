@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useCallback, useEffect, useState, useRef } from 'react'
 import { fetchLogs } from '../services/api'
 import { Terminal, RefreshCw, ChevronDown } from 'lucide-react'
 
@@ -13,7 +13,7 @@ const LogViewer: React.FC<Props> = ({ containerId, containerName }) => {
   const [autoRefresh, setAutoRefresh] = useState(true)
   const logEndRef = useRef<HTMLDivElement>(null)
 
-  const loadLogs = async () => {
+  const loadLogs = useCallback(async () => {
     setLoading(true)
     try {
       const data = await fetchLogs(containerId, 100)
@@ -23,16 +23,20 @@ const LogViewer: React.FC<Props> = ({ containerId, containerName }) => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [containerId])
 
   useEffect(() => {
-    loadLogs()
-    let iv: any
+    void loadLogs()
+    let iv: ReturnType<typeof setInterval> | null = null
     if (autoRefresh) {
-      iv = setInterval(loadLogs, 3000)
+      iv = setInterval(() => {
+        void loadLogs()
+      }, 3000)
     }
-    return () => clearInterval(iv)
-  }, [containerId, autoRefresh])
+    return () => {
+      if (iv) clearInterval(iv)
+    }
+  }, [autoRefresh, loadLogs])
 
   useEffect(() => {
     if (logEndRef.current) {

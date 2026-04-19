@@ -8,13 +8,24 @@ interface Props {
   containerStatus?: string
 }
 
+function toServiceBaseName(name?: string): string {
+  if (!name) return ''
+  return name.replace(/-\d+$/, '')
+}
+
+function errorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error && err.message) return err.message
+  return fallback
+}
+
 const ControlPanel: React.FC<Props> = ({ onDone, containerName, containerId, containerStatus }) => {
+  const scopedContainerName = toServiceBaseName(containerName)
   const [image, setImage] = useState('nginx:alpine')
   const [name, setName] = useState('web')
   const [replicas, setReplicas] = useState<number>(1)
   const [envVars, setEnvVars] = useState('')
   const [portMapping, setPortMapping] = useState('8080:80')
-  const [scaleName, setScaleName] = useState(containerName || '')
+  const [scaleName, setScaleName] = useState(scopedContainerName || '')
   const [scaleReplicas, setScaleReplicas] = useState<number>(1)
   const [status, setStatus] = useState<string | null>(null)
 
@@ -32,21 +43,26 @@ const ControlPanel: React.FC<Props> = ({ onDone, containerName, containerId, con
       }
       
       let portsMap: Record<string, string> | undefined = undefined;
-      if (portMapping) {
-        portsMap = {}
+      if (portMapping.trim()) {
+        const mappedPorts: Record<string, string> = {}
         portMapping.split(',').forEach(p => {
-           const [host, container] = p.split(':')
-           if (host && container) {
-              portsMap[`${container.trim()}/tcp`] = host.trim()
-           }
+          const [host, container] = p.split(':')
+          const hostPort = host?.trim()
+          const containerPort = container?.trim()
+          if (hostPort && containerPort) {
+            mappedPorts[`${containerPort}/tcp`] = hostPort
+          }
         })
+        if (Object.keys(mappedPorts).length > 0) {
+          portsMap = mappedPorts
+        }
       }
       
       await deployService({ image, name, replicas, environment, ports: portsMap })
       setStatus('Deployed')
-      onDone && onDone()
-    } catch (err: any) {
-      setStatus('Error: ' + (err?.message || 'deploy failed'))
+      if (onDone) onDone()
+    } catch (err: unknown) {
+      setStatus('Error: ' + errorMessage(err, 'deploy failed'))
     }
     setTimeout(() => setStatus(null), 3000)
   }
@@ -57,9 +73,9 @@ const ControlPanel: React.FC<Props> = ({ onDone, containerName, containerId, con
     try {
       await scaleService({ name: scaleName, replicas: scaleReplicas })
       setStatus('Scaled')
-      onDone && onDone()
-    } catch (err: any) {
-      setStatus('Error: ' + (err?.message || 'scale failed'))
+      if (onDone) onDone()
+    } catch (err: unknown) {
+      setStatus('Error: ' + errorMessage(err, 'scale failed'))
     }
     setTimeout(() => setStatus(null), 3000)
   }
@@ -72,15 +88,16 @@ const ControlPanel: React.FC<Props> = ({ onDone, containerName, containerId, con
       else if (action === 'stop') await stopContainer(containerId)
       else if (action === 'remove') await removeContainer(containerId)
       
-      setStatus(`Successfully ${action}ed`)
+      const verb = action === 'remove' ? 'removed' : action === 'stop' ? 'stopped' : 'started'
+      setStatus(`Successfully ${verb}`)
       if (action === 'remove' && onDone) {
         // give it a tiny delay on remove before refresh to let react router or parent redirect back easily
         setTimeout(() => onDone(), 500)
       } else {
-        onDone && onDone()
+        if (onDone) onDone()
       }
-    } catch (err: any) {
-      setStatus('Error: ' + (err?.message || `${action} failed`))
+    } catch (err: unknown) {
+      setStatus('Error: ' + errorMessage(err, `${action} failed`))
     }
     setTimeout(() => setStatus(null), 3000)
   }

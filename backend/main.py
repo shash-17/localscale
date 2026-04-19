@@ -113,6 +113,7 @@ class PolicyEvaluateRequest(BaseModel):
     duration_seconds: float
     region: str = "us-east-1"
     host_cpus: Optional[int] = None
+    container_name: Optional[str] = None
 
 
 class AutoScalerConfigRequest(BaseModel):
@@ -342,8 +343,47 @@ def add_policy(pc: PolicyCreate):
 def evaluate_policy(req: PolicyEvaluateRequest):
     if policy_engine is None:
         raise HTTPException(status_code=500, detail="Policy engine unavailable")
-    result = policy_engine.evaluate(req.cpu_pct, req.mem_mb, req.duration_seconds, req.region, req.host_cpus)
+    result = policy_engine.evaluate(
+        req.cpu_pct,
+        req.mem_mb,
+        req.duration_seconds,
+        req.region,
+        req.host_cpus,
+        req.container_name,
+    )
     return result
+
+
+@app.get("/policies/violations")
+def get_policy_violations(limit: int = 100, container_name: Optional[str] = None):
+    if not os.path.exists(DB_PATH):
+        return []
+    conn = None
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        if container_name:
+            cur.execute(
+                "SELECT id, container_name, policy, metric, threshold, observed, period, timestamp "
+                "FROM policy_violations WHERE container_name = ? ORDER BY timestamp DESC LIMIT ?",
+                (container_name, limit),
+            )
+        else:
+            cur.execute(
+                "SELECT id, container_name, policy, metric, threshold, observed, period, timestamp "
+                "FROM policy_violations ORDER BY timestamp DESC LIMIT ?",
+                (limit,),
+            )
+        return [dict(r) for r in cur.fetchall()]
+    except sqlite3.OperationalError:
+        return []
+    except sqlite3.Error as e:
+        logger.exception("Policy violations DB error: %s", e)
+        raise HTTPException(status_code=500, detail="Policy violations DB error")
+    finally:
+        if conn:
+            conn.close()
 
 
 # ── Auto-Scaler APIs ─────────────────────────────────────────────
@@ -393,7 +433,7 @@ def get_scaling_status():
 
 
 def init_db():
-    """Create metrics_history table if missing."""
+    """Create metrics-related tables if missing."""
     try:
         conn = sqlite3.connect(DB_PATH)
         cur = conn.cursor()
@@ -407,6 +447,20 @@ def init_db():
                 timestamp TEXT,
                 estimated_cost REAL,
                 carbon_g REAL
+            )
+            """
+        )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS policy_violations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                container_name TEXT,
+                policy TEXT,
+                metric TEXT,
+                threshold REAL,
+                observed REAL,
+                period TEXT,
+                timestamp TEXT
             )
             """
         )
@@ -487,6 +541,58 @@ async def collect_metrics():
                         pass
 
             await asyncio.to_thread(_write)
+
+            # Evaluate governance policies continuously using collected samples.
+            if policy_engine is not None:
+                try:
+                    evaluation = policy_engine.evaluate(
+                        cpu,
+                        mem_mb,
+                        duration,
+                        container_name=name,
+                    )
+                    violations = evaluation.get("violations") or []
+
+                    if violations:
+                        def _write_violations():
+                            try:
+                                conn = sqlite3.connect(DB_PATH)
+                                cur = conn.cursor()
+                                for v in violations:
+                                    cur.execute(
+                                        "INSERT INTO policy_violations (container_name, policy, metric, threshold, observed, period, timestamp) "
+                                        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                                        (
+                                            name,
+                                            str(v.get("policy", "")),
+                                            str(v.get("metric", "")),
+                                            float(v.get("threshold", 0.0)),
+                                            float(v.get("observed", 0.0)),
+                                            str(v.get("period", "run")),
+                                            now,
+                                        ),
+                                    )
+                                conn.commit()
+                            except sqlite3.Error:
+                                logger.exception("Failed writing policy violations to DB")
+                            finally:
+                                try:
+                                    conn.close()
+                                except Exception:
+                                    pass
+
+                        await asyncio.to_thread(_write_violations)
+                        for v in violations:
+                            logger.warning(
+                                "Policy violation detected: container=%s metric=%s observed=%s threshold=%s policy=%s",
+                                name,
+                                v.get("metric"),
+                                v.get("observed"),
+                                v.get("threshold"),
+                                v.get("policy"),
+                            )
+                except Exception:
+                    logger.exception("Policy evaluation failed during metrics collection")
 
         # --- Predictive auto-scaler evaluation ---
         if autoscaler is not None and autoscaler.config.enabled:

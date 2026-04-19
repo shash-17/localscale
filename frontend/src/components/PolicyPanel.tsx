@@ -1,13 +1,40 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { fetchPolicies, addPolicy } from '../services/api'
 
 interface Props {
-  containerName?: string;
+  containerName?: string
+}
+
+interface PolicyObject {
+  metric?: string
+  threshold?: number
+  period?: string
+  container?: string
+  raw?: string
+  [key: string]: unknown
+}
+
+type PolicyEntry = string | PolicyObject
+
+function isPolicyObject(value: PolicyEntry): value is PolicyObject {
+  return typeof value === 'object' && value !== null
+}
+
+function policyInScope(policyContainer: unknown, selectedContainer: string): boolean {
+  if (!policyContainer || typeof policyContainer !== 'string') return true
+  const p = policyContainer.toLowerCase().trim()
+  const c = selectedContainer.toLowerCase().trim()
+  return c === p || c.startsWith(`${p}-`) || p.startsWith(`${c}-`)
+}
+
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error && err.message) return err.message
+  return 'Failed'
 }
 
 const PolicyPanel = ({ containerName }: Props) => {
-  const [policies, setPolicies] = useState<any[]>([])
+  const [policies, setPolicies] = useState<PolicyEntry[]>([])
   const [newPolicy, setNewPolicy] = useState('')
   const [status, setStatus] = useState<string | null>(null)
 
@@ -17,40 +44,43 @@ const PolicyPanel = ({ containerName }: Props) => {
   const [period, setPeriod] = useState('hr')
   const [containerFocus, setContainerFocus] = useState(containerName || '')
 
-  useEffect(() => {
-    load()
-  }, [])
-
-  async function load() {
+  const load = useCallback(async () => {
     try {
       const data = await fetchPolicies()
-      // If a specific container is set, only show policies that match it or are global.
-      // Wait, if we are in a specific container, maybe we just show policies targeting IT.
       if (containerName) {
-        setPolicies(data.filter(p => typeof p === 'object' && p.container === containerName))
+        setPolicies(
+          data.filter((p) => !isPolicyObject(p) || policyInScope(p.container, containerName))
+        )
       } else {
         setPolicies(data)
       }
     } catch (e) {
       console.error(e)
     }
-  }
+  }, [containerName])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void load()
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [load])
 
   async function handleAdd(e?: FormEvent) {
     if (e) e.preventDefault()
     if (!newPolicy.trim()) return
     setStatus('Adding...')
     try {
-      let finalPolicy = newPolicy;
+      let finalPolicy = newPolicy
       if (containerName && !newPolicy.includes(containerName)) {
-        finalPolicy = `${newPolicy} in ${containerName}`;
+        finalPolicy = `${newPolicy} in ${containerName}`
       }
       await addPolicy(finalPolicy)
       setNewPolicy('')
       setStatus('Policy added')
-      load()
-    } catch (err: any) {
-      setStatus(`Error: ${err.message || 'Failed'}`)
+      await load()
+    } catch (err: unknown) {
+      setStatus(`Error: ${getErrorMessage(err)}`)
     }
   }
 
@@ -59,21 +89,21 @@ const PolicyPanel = ({ containerName }: Props) => {
     if (!threshold) return
     setStatus('Adding...')
     try {
-      const targetContainer = containerName || containerFocus;
+      const targetContainer = containerName || containerFocus
       const rawText = `[Form] if ${metric} > ${threshold} ` + (period !== 'None' ? `for 1 ${period}` : '') + (targetContainer ? ` in ${targetContainer}` : '')
-      const pObj = { 
-        metric: metric, 
-        threshold: Number(threshold), 
-        period: period === 'None' ? null : period, 
-        container: targetContainer || null, 
-        raw: rawText 
+      const pObj: PolicyObject = {
+        metric,
+        threshold: Number(threshold),
+        period: period === 'None' ? 'run' : period,
+        container: targetContainer || undefined,
+        raw: rawText,
       }
       await addPolicy(pObj)
       setThreshold('')
       setStatus('Structured policy added')
-      load()
-    } catch (err: any) {
-      setStatus(`Error: ${err.message || 'Failed'}`)
+      await load()
+    } catch (err: unknown) {
+      setStatus(`Error: ${getErrorMessage(err)}`)
     }
   }
 
@@ -95,8 +125,8 @@ const PolicyPanel = ({ containerName }: Props) => {
                 <select value={metric} onChange={v => setMetric(v.target.value)} className="neu-inset bg-transparent border-none outline-none w-full rounded-[var(--neu-radius-xs)] px-3 py-2 text-sm text-[var(--neu-text)]">
                   <option value="cpu_percent" className="bg-[var(--neu-bg)]">CPU %</option>
                   <option value="mem_mb" className="bg-[var(--neu-bg)]">Memory (MB)</option>
-                  <option value="carbon_g" className="bg-[var(--neu-bg)]">Carbon (g)</option>
-                  <option value="estimated_cost" className="bg-[var(--neu-bg)]">Cost ($)</option>
+                  <option value="carbon" className="bg-[var(--neu-bg)]">Carbon (g)</option>
+                  <option value="cost" className="bg-[var(--neu-bg)]">Cost ($)</option>
                 </select>
               </div>
               <div className="flex flex-col">

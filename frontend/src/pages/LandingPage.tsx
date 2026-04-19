@@ -9,7 +9,6 @@ import {
   ChevronDown,
   Shield,
   Layers,
-  Zap,
   Activity,
   Server,
   DollarSign,

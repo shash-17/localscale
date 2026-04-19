@@ -12,6 +12,7 @@ interface Props {
 
 // ── CSP Rate Cards (mirror of backend CSP_RATE_CARDS) ──
 const CSP_CARDS: Record<string, { label: string; vcpu_hour: number; gb_ram_hour: number; desc: string }> = {
+  'sim_default':   { label: 'LocalScale Default', vcpu_hour: 0.01, gb_ram_hour: 0.005, desc: 'Simulator baseline' },
   'aws_t3_medium': { label: 'AWS t3.medium', vcpu_hour: 0.0208, gb_ram_hour: 0.0052, desc: '2 vCPU, 4 GiB' },
   'aws_t3_micro':  { label: 'AWS t3.micro',  vcpu_hour: 0.0052, gb_ram_hour: 0.0052, desc: '2 vCPU, 1 GiB' },
   'gcp_e2_medium': { label: 'GCP e2-medium', vcpu_hour: 0.0168, gb_ram_hour: 0.00225, desc: '2 vCPU, 4 GiB' },
@@ -34,21 +35,21 @@ const W_PER_VCPU = 10.0
 const W_PER_GB_RAM = 0.5
 
 const EconomicsPanel: React.FC<Props> = ({ metrics: initialMetrics, limit = 500, containerName, minimal }) => {
-  const [metrics, setMetrics] = useState<MetricHistory[] | null>(initialMetrics ?? null)
-  const [csp, setCsp] = useState('aws_t3_medium')
+  const [fetchedMetrics, setFetchedMetrics] = useState<MetricHistory[] | null>(null)
+  const [csp, setCsp] = useState('sim_default')
   const [region, setRegion] = useState('us-east-1')
+
+  const metrics = initialMetrics ?? fetchedMetrics
 
   useEffect(() => {
     let mounted = true
-    // If we're provided metrics directly, just use them.
     if (initialMetrics) {
-      setMetrics(initialMetrics)
       return
     }
     
     function load() {
       fetchHistory(limit, containerName).then((m) => {
-        if (mounted) setMetrics(m)
+        if (mounted) setFetchedMetrics(m)
       }).catch(() => {})
     }
 
@@ -63,7 +64,7 @@ const EconomicsPanel: React.FC<Props> = ({ metrics: initialMetrics, limit = 500,
 
   const totals = useMemo(() => {
     if (!metrics || metrics.length === 0) return { cost: 0, carbonG: 0, carbonKg: 0, samples: 0 }
-    const card = CSP_CARDS[csp] || CSP_CARDS['aws_t3_medium']
+    const card = CSP_CARDS[csp] || CSP_CARDS['sim_default']
     const regionData = REGIONS[region] || REGIONS['us-east-1']
 
     let totalCost = 0

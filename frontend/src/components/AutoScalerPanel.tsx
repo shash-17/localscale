@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   Activity,
   TrendingUp,
@@ -6,8 +6,6 @@ import {
   Minus,
   Zap,
   Settings,
-  ChevronDown,
-  ChevronUp,
   Power,
 } from 'lucide-react'
 import {
@@ -31,27 +29,34 @@ const AutoScalerPanel = ({ containerName }: Props) => {
   // Editable config
   const [editConfig, setEditConfig] = useState<Partial<AutoScalerConfig>>({})
 
-  async function load() {
+  const scopedService = containerName ? containerName.replace(/-\d+$/, '') : undefined
+
+  const load = useCallback(async () => {
     try {
       const [s, e] = await Promise.all([
         fetchScalingStatus(),
-        fetchScalingEvents(20, containerName),
+        fetchScalingEvents(20, scopedService),
       ])
       setStatus(s)
       setEvents(e)
-      if (Object.keys(editConfig).length === 0 && s.config) {
-        setEditConfig(s.config)
-      }
+      setEditConfig((prev) => {
+        if (Object.keys(prev).length === 0 && s.config) {
+          return s.config
+        }
+        return prev
+      })
     } catch (err) {
       console.error('Failed to load auto-scaler status', err)
     }
-  }
+  }, [scopedService])
 
   useEffect(() => {
-    load()
-    const iv = setInterval(load, 5000)
+    void load()
+    const iv = setInterval(() => {
+      void load()
+    }, 5000)
     return () => clearInterval(iv)
-  }, [containerName])
+  }, [load])
 
   async function handleToggle() {
     setLoading(true)
@@ -210,7 +215,7 @@ const AutoScalerPanel = ({ containerName }: Props) => {
                 <input
                   type={field.type}
                   step={field.step}
-                  value={(editConfig as any)[field.key] ?? ''}
+                  value={editConfig[field.key] ?? ''}
                   onChange={(e) =>
                     setEditConfig((prev) => ({
                       ...prev,

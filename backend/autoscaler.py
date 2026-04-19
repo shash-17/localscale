@@ -128,6 +128,13 @@ class PredictiveScaler:
         self._last_scale: Dict[str, float] = {}  # container → last scale epoch
         self._lock = threading.Lock()
 
+    @staticmethod
+    def _base_name(name: str) -> str:
+        parts = str(name).rsplit("-", 1)
+        if len(parts) == 2 and parts[1].isdigit():
+            return parts[0]
+        return str(name)
+
     # --- DB helpers ---
     def _init_events_table(self):
         """Create the ``scaling_events`` table if it doesn't exist."""
@@ -161,17 +168,37 @@ class PredictiveScaler:
         """Return last N minutes of CPU data from metrics_history."""
         cutoff = (datetime.datetime.utcnow() - datetime.timedelta(minutes=self.config.lookback_minutes)).isoformat() + "Z"
         rows: List[Dict[str, Any]] = []
+        base_name = self._base_name(container_name)
+        if not base_name:
+            return rows
         try:
             conn = sqlite3.connect(self.db_path)
             conn.row_factory = sqlite3.Row
             cur = conn.cursor()
             cur.execute(
                 "SELECT cpu_pct, mem_mb, timestamp FROM metrics_history "
-                "WHERE container_name = ? AND timestamp >= ? ORDER BY timestamp ASC",
-                (container_name, cutoff),
+                "WHERE timestamp >= ? AND (container_name = ? OR container_name = ? OR container_name LIKE ?) "
+                "ORDER BY timestamp ASC",
+                (cutoff, container_name, base_name, f"{base_name}-%"),
             )
+            buckets: Dict[str, Dict[str, float]] = {}
             for r in cur.fetchall():
-                rows.append({"cpu_percent": float(r["cpu_pct"]), "mem_mb": float(r["mem_mb"]), "timestamp": r["timestamp"]})
+                ts = str(r["timestamp"])
+                b = buckets.setdefault(ts, {"cpu_sum": 0.0, "cpu_count": 0.0, "mem_sum": 0.0})
+                b["cpu_sum"] += float(r["cpu_pct"])
+                b["cpu_count"] += 1.0
+                b["mem_sum"] += float(r["mem_mb"])
+
+            for ts in sorted(buckets.keys()):
+                b = buckets[ts]
+                cpu_count = b["cpu_count"] if b["cpu_count"] > 0 else 1.0
+                rows.append(
+                    {
+                        "cpu_percent": b["cpu_sum"] / cpu_count,
+                        "mem_mb": b["mem_sum"],
+                        "timestamp": ts,
+                    }
+                )
         except sqlite3.Error as e:
             logger.debug("Error reading metrics history: %s", e)
         finally:
@@ -217,9 +244,11 @@ class PredictiveScaler:
             conn.row_factory = sqlite3.Row
             cur = conn.cursor()
             if container_name:
+                base_name = self._base_name(container_name)
                 cur.execute(
-                    "SELECT * FROM scaling_events WHERE container_name = ? ORDER BY timestamp DESC LIMIT ?",
-                    (container_name, limit),
+                    "SELECT * FROM scaling_events WHERE container_name = ? OR container_name = ? "
+                    "ORDER BY timestamp DESC LIMIT ?",
+                    (container_name, base_name, limit),
                 )
             else:
                 cur.execute("SELECT * FROM scaling_events ORDER BY timestamp DESC LIMIT ?", (limit,))
@@ -335,11 +364,7 @@ class PredictiveScaler:
             if not name:
                 continue
             # Detect base name: "web-1", "web-2" → "web"
-            parts = name.rsplit("-", 1)
-            if len(parts) == 2 and parts[1].isdigit():
-                base = parts[0]
-            else:
-                base = name
+            base = self._base_name(name)
             groups[base] = groups.get(base, 0) + 1
 
         decisions: List[ScalingDecision] = []

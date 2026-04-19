@@ -1,12 +1,9 @@
-import { useEffect, useState, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   LayoutDashboard,
-  DollarSign,
-  Settings,
   Box,
   RefreshCw,
-  Home,
   ChevronLeft,
   Menu,
   X,
@@ -20,6 +17,7 @@ import MetricsChart from '../components/MetricsChart'
 import EconomicsPanel from '../components/EconomicsPanel'
 import ControlPanel from '../components/ControlPanel'
 import PolicyPanel from '../components/PolicyPanel'
+import PolicyViolationsPanel from '../components/PolicyViolationsPanel'
 import LogViewer from '../components/LogViewer'
 import AutoScalerPanel from '../components/AutoScalerPanel'
 import { fetchContainers } from '../services/api'
@@ -39,15 +37,13 @@ export default function Dashboard() {
     }
     return false
   })
-  const navigate = useNavigate()
-
   // Apply dark mode to document
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
     localStorage.setItem('localscale-theme', darkMode ? 'dark' : 'light')
   }, [darkMode])
 
-  async function reloadNow(currentContainers?: Container[]) {
+  async function reloadNow() {
     try {
       const cs = await fetchContainers()
       setContainers(cs)
@@ -247,6 +243,7 @@ export default function Dashboard() {
               </div>
               <div className="dash-eco-grid w-full lg:max-w-4xl">
                 <AutoScalerPanel />
+                <PolicyViolationsPanel limit={25} />
               </div>
             </>
           )}
@@ -293,6 +290,7 @@ export default function Dashboard() {
                 <div className="dash-grid-main space-y-6">
                    <AutoScalerPanel containerName={activeContainer.name} />
                    <PolicyPanel containerName={activeContainer.name} />
+                   <PolicyViolationsPanel containerName={activeContainer.name} limit={25} />
                    <LogViewer containerId={activeContainer.id} containerName={activeContainer.name} />
                 </div>
                 <div className="dash-grid-side space-y-6">

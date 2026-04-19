@@ -16,11 +16,14 @@ interface Props {
   limit?: number
 }
 
+type MetricType = 'cpu' | 'mem' | 'cost' | 'carbon'
+type ChartPoint = { time: string } & Record<string, number | string>
+
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#0088FE', '#00C49F', '#FFBB28', '#FF8042']
 
 const MetricsChart: React.FC<Props> = ({ containers = [], limit = 200 }) => {
-  const [data, setData] = useState<Array<any>>([])
-  const [metricType, setMetricType] = useState<'cpu' | 'mem' | 'cost' | 'carbon'>('cost')
+  const [data, setData] = useState<ChartPoint[]>([])
+  const [metricType, setMetricType] = useState<MetricType>('cost')
 
   useEffect(() => {
     let mounted = true
@@ -33,7 +36,7 @@ const MetricsChart: React.FC<Props> = ({ containers = [], limit = 200 }) => {
         const all = await fetchHistory(limit)
         
         // Group by timestamp
-        const grouped: Record<string, any> = {}
+        const grouped: Record<string, ChartPoint> = {}
         for (const m of all) {
           const t = new Date(m.timestamp).toLocaleTimeString()
           if (!grouped[t]) {
@@ -72,7 +75,7 @@ const MetricsChart: React.FC<Props> = ({ containers = [], limit = 200 }) => {
         <h3 className="font-semibold text-base text-[var(--neu-text)]">{containers.length === 1 ? 'Metrics Tracker' : 'Combined Metrics Tracker'}</h3>
         <select 
            value={metricType} 
-           onChange={(e) => setMetricType(e.target.value as any)}
+            onChange={(e) => setMetricType(e.target.value as MetricType)}
            className="text-sm neu-inset bg-transparent border-none outline-none rounded-[var(--neu-radius-xs)] px-3 py-1.5 text-[var(--neu-text)]"
         >
           <option value="cpu" className="bg-[var(--neu-bg)]">CPU %</option>

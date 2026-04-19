@@ -34,7 +34,7 @@ export interface DeployRequest {
   image: string
   name: string
   replicas?: number
-  ports?: Record<string, any>
+  ports?: Record<string, unknown>
   environment?: Record<string, string>
 }
 
@@ -42,6 +42,9 @@ export interface ScaleRequest {
   name: string
   replicas: number
 }
+
+export type PolicyPayload = string | Record<string, unknown>
+export type ApiResponse = Record<string, unknown>
 
 export async function fetchContainers(): Promise<Container[]> {
   const { data } = await api.get<Container[]>('/containers')
@@ -53,13 +56,13 @@ export async function fetchStats(id: string): Promise<Stats> {
   return data
 }
 
-export async function deployService(req: DeployRequest): Promise<any> {
-  const { data } = await api.post('/deploy', req)
+export async function deployService(req: DeployRequest): Promise<ApiResponse> {
+  const { data } = await api.post<ApiResponse>('/deploy', req)
   return data
 }
 
-export async function scaleService(req: ScaleRequest): Promise<any> {
-  const { data } = await api.post('/scale', req)
+export async function scaleService(req: ScaleRequest): Promise<ApiResponse> {
+  const { data } = await api.post<ApiResponse>('/scale', req)
   return data
 }
 
@@ -73,33 +76,33 @@ export async function fetchHistory(limit = 100, containerName?: string): Promise
 
 export default api
 
-export async function fetchPolicies(): Promise<any[]> {
+export async function fetchPolicies(): Promise<PolicyPayload[]> {
   try {
-    const { data } = await api.get<any[]>('/policies')
+    const { data } = await api.get<PolicyPayload[]>('/policies')
     return data
-  } catch(e) {
+  } catch {
     return []
   }
 }
 
-export async function addPolicy(policy: any): Promise<any> {
-  const { data } = await api.post('/policies', { policy })
+export async function addPolicy(policy: PolicyPayload): Promise<ApiResponse> {
+  const { data } = await api.post<ApiResponse>('/policies', { policy })
   return data
 }
 
 
-export async function stopContainer(id: string): Promise<any> {
-  const { data } = await api.post(`/containers/${id}/stop`)
+export async function stopContainer(id: string): Promise<ApiResponse> {
+  const { data } = await api.post<ApiResponse>(`/containers/${id}/stop`)
   return data
 }
 
-export async function startContainer(id: string): Promise<any> {
-  const { data } = await api.post(`/containers/${id}/start`)
+export async function startContainer(id: string): Promise<ApiResponse> {
+  const { data } = await api.post<ApiResponse>(`/containers/${id}/start`)
   return data
 }
 
-export async function removeContainer(id: string): Promise<any> {
-  const { data } = await api.delete(`/containers/${id}`)
+export async function removeContainer(id: string): Promise<ApiResponse> {
+  const { data } = await api.delete<ApiResponse>(`/containers/${id}`)
   return data
 }
 
@@ -140,6 +143,17 @@ export interface ScalingStatus {
   recent_events: ScalingEvent[]
 }
 
+export interface PolicyViolation {
+  id: number
+  container_name: string
+  policy: string
+  metric: string
+  threshold: number
+  observed: number
+  period: string
+  timestamp: string
+}
+
 export async function fetchScalingEvents(limit = 50, containerName?: string): Promise<ScalingEvent[]> {
   const url = containerName
     ? `/scaling/events?limit=${limit}&container_name=${encodeURIComponent(containerName)}`
@@ -153,12 +167,20 @@ export async function fetchScalingConfig(): Promise<AutoScalerConfig> {
   return data
 }
 
-export async function updateScalingConfig(config: Partial<AutoScalerConfig>): Promise<any> {
-  const { data } = await api.post('/scaling/config', config)
+export async function updateScalingConfig(config: Partial<AutoScalerConfig>): Promise<ApiResponse> {
+  const { data } = await api.post<ApiResponse>('/scaling/config', config)
   return data
 }
 
 export async function fetchScalingStatus(): Promise<ScalingStatus> {
   const { data } = await api.get<ScalingStatus>('/scaling/status')
+  return data
+}
+
+export async function fetchPolicyViolations(limit = 100, containerName?: string): Promise<PolicyViolation[]> {
+  const url = containerName
+    ? `/policies/violations?limit=${limit}&container_name=${encodeURIComponent(containerName)}`
+    : `/policies/violations?limit=${limit}`
+  const { data } = await api.get<PolicyViolation[]>(url)
   return data
 }
