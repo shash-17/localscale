@@ -8,6 +8,28 @@ class ContainerManager:
         except DockerException as e:
             self.client = None
             print(f"Docker client initialization failed: {e}")
+        self.last_error: str | None = None
+
+    @staticmethod
+    def _image_label(container) -> str:
+        """Best-effort image label that does not fail when image metadata is missing."""
+        try:
+            img = container.image
+            if img.tags:
+                return img.tags[0]
+            if getattr(img, "short_id", None):
+                return img.short_id
+        except Exception:
+            pass
+        try:
+            cfg = (container.attrs or {}).get("Config") or {}
+            if cfg.get("Image"):
+                return str(cfg.get("Image"))
+            if (container.attrs or {}).get("Image"):
+                return str((container.attrs or {}).get("Image"))
+        except Exception:
+            pass
+        return "<unknown-image>"
 
     def list_containers(self):
         if not self.client:
@@ -16,22 +38,28 @@ class ContainerManager:
             containers = self.client.containers.list()
             result = []
             for c in containers:
+                try:
+                    image_label = self._image_label(c)
                 # Extract port mappings, e.g. {'80/tcp': [{'HostPort': '8080'}]} -> '8080'
-                port_mappings = []
-                if c.ports:
-                    for container_port, host_bindings in c.ports.items():
-                        if host_bindings:
-                            for binding in host_bindings:
-                                if 'HostPort' in binding:
-                                    port_mappings.append(f"{binding['HostPort']}->{container_port.split('/')[0]}")
-                
-                result.append({
-                    'ID': c.id,
-                    'Name': c.name,
-                    'Status': c.status,
-                    'Image': c.image.tags[0] if c.image.tags else c.image.short_id,
-                    'Ports': port_mappings
-                })
+                    port_mappings = []
+                    if c.ports:
+                        for container_port, host_bindings in c.ports.items():
+                            if host_bindings:
+                                for binding in host_bindings:
+                                    if 'HostPort' in binding:
+                                        port_mappings.append(f"{binding['HostPort']}->{container_port.split('/')[0]}")
+
+                    result.append({
+                        'ID': c.id,
+                        'Name': c.name,
+                        'Status': c.status,
+                        'Image': image_label,
+                        'Ports': port_mappings
+                    })
+                except Exception as e:
+                    # Skip malformed container metadata but keep API responsive.
+                    print(f"Error parsing container {getattr(c, 'id', '<unknown>')}: {e}")
+                    continue
             return result
         except DockerException as e:
             print(f"Error listing containers: {e}")
@@ -89,6 +117,7 @@ class ContainerManager:
         if not self.client:
             return None
         try:
+            self.last_error = None
             container = self.client.containers.run(
                 image,
                 name=name,
@@ -98,6 +127,7 @@ class ContainerManager:
             )
             return container.id
         except (DockerException, APIError) as e:
+            self.last_error = str(e)
             print(f"Error starting container: {e}")
             return None
 
@@ -125,8 +155,26 @@ class ContainerManager:
                 cname = f"{name}-{i}"
                 if cname not in running:
                     if image:
-                        cid = self.start_container(image, cname, ports, environment)
-                        results.append({'name': cname, 'action': 'started', 'id': cid})
+                        replica_ports = ports
+                        # Avoid host-port collisions when scaling replicas for fixed host bindings.
+                        if ports and i > 1:
+                            replica_ports = {}
+                            for container_port, host_binding in ports.items():
+                                if host_binding in (None, "", 0):
+                                    replica_ports[container_port] = None
+                                else:
+                                    replica_ports[container_port] = None
+
+                        cid = self.start_container(image, cname, replica_ports, environment)
+                        if cid:
+                            results.append({'name': cname, 'action': 'started', 'id': cid})
+                        else:
+                            results.append({
+                                'name': cname,
+                                'action': 'failed',
+                                'id': None,
+                                'error': self.last_error or 'failed to start container',
+                            })
                 else:
                     c = running[cname]
                     if c.status != 'running':

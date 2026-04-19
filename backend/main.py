@@ -267,6 +267,16 @@ def deploy(req: DeployRequest):
     docker_required()
     # Use ContainerManager.scale_container to create the initial replicas (name-1..name-N)
     results = manager.scale_container(req.name, req.replicas, image=req.image, ports=req.ports, environment=req.environment)
+    failures = [r for r in results if r.get("action") == "failed"]
+    if failures:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "One or more replicas failed to start",
+                "results": results,
+                "failures": failures,
+            },
+        )
     return {"results": results}
 
 
@@ -274,6 +284,16 @@ def deploy(req: DeployRequest):
 def scale(req: ScaleRequest):
     docker_required()
     results = manager.scale_container(req.name, req.replicas)
+    failures = [r for r in results if r.get("action") == "failed"]
+    if failures:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "Scaling completed with errors",
+                "results": results,
+                "failures": failures,
+            },
+        )
     return {"results": results}
 
 
