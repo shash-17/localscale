@@ -11,6 +11,7 @@ import {
   Menu,
   X,
   PlusSquare,
+  Zap,
 } from 'lucide-react'
 import ContainerList from '../components/ContainerList'
 import MetricsChart from '../components/MetricsChart'
@@ -18,11 +19,12 @@ import EconomicsPanel from '../components/EconomicsPanel'
 import ControlPanel from '../components/ControlPanel'
 import PolicyPanel from '../components/PolicyPanel'
 import LogViewer from '../components/LogViewer'
+import AutoScalerPanel from '../components/AutoScalerPanel'
 import { fetchContainers } from '../services/api'
 import type { Container } from '../services/api'
 import './Dashboard.css'
 
-type Nav = 'dashboard' | 'control' | 'container_details'
+type Nav = 'dashboard' | 'control' | 'autoscaler' | 'container_details'
 
 export default function Dashboard() {
   const [containers, setContainers] = useState<Container[]>([])
@@ -84,6 +86,7 @@ export default function Dashboard() {
 
   const navItems: { key: Nav; label: string; icon: React.ReactNode }[] = [
     { key: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
+    { key: 'autoscaler', label: 'Auto-Scaler', icon: <Zap size={18} /> },
     { key: 'control', label: 'Deploy Modules', icon: <PlusSquare size={18} /> },
   ]
 
@@ -104,7 +107,7 @@ export default function Dashboard() {
             <span>LocalScale</span>
           </div>
         </div>
-        <button className="dash-btn-sm" onClick={reloadNow}>
+        <button className="dash-btn-sm" onClick={() => reloadNow()}>
           <RefreshCw size={14} />
           Refresh
         </button>
@@ -167,7 +170,7 @@ export default function Dashboard() {
                   <p className="dash-page-desc">Overview of running containers and resource usage</p>
                 </div>
                 <div className="dash-page-actions">
-                  <button className="dash-btn-outline" onClick={reloadNow}>
+                  <button className="dash-btn-outline" onClick={() => reloadNow()}>
                     <RefreshCw size={14} />
                     Refresh
                   </button>
@@ -213,6 +216,20 @@ export default function Dashboard() {
             </>
           )}
 
+          {nav === 'autoscaler' && (
+            <>
+              <div className="dash-page-header">
+                <div>
+                  <h1 className="dash-page-title">Predictive Auto-Scaler</h1>
+                  <p className="dash-page-desc">Configure and monitor the linear-regression scaling engine</p>
+                </div>
+              </div>
+              <div className="dash-eco-grid w-full lg:max-w-4xl">
+                <AutoScalerPanel />
+              </div>
+            </>
+          )}
+
           {nav === 'control' && (
             <>
               <div className="dash-page-header">
@@ -241,7 +258,7 @@ export default function Dashboard() {
                   <button className="dash-btn-outline" onClick={() => setNav('dashboard')}>
                     <ChevronLeft size={14} /> Back to Dashboard
                   </button>
-                  <button className="dash-btn-outline" onClick={reloadNow}>
+                  <button className="dash-btn-outline" onClick={() => reloadNow()}>
                     <RefreshCw size={14} /> Refresh
                   </button>
                 </div>
@@ -253,6 +270,7 @@ export default function Dashboard() {
 
               <div className="dash-grid-detail mb-6">
                 <div className="dash-grid-main space-y-6">
+                   <AutoScalerPanel containerName={activeContainer.name} />
                    <PolicyPanel containerName={activeContainer.name} />
                    <LogViewer containerId={activeContainer.id} containerName={activeContainer.name} />
                 </div>

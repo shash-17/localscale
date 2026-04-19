@@ -1,7 +1,8 @@
 """
 Simple simulator for pricing and carbon footprint estimations.
 This module provides:
-- PRICING_MODELS: hardcoded USD rates
+- PRICING_MODELS: hardcoded USD rates (default / generic)
+- CSP_RATE_CARDS: explicit AWS t3.medium and GCP e2-medium pricing
 - CARBON_INTENSITY: simulated gCO2/kWh by region
 - calculate_cost(...)
 - calculate_carbon_footprint(...)
@@ -11,15 +12,49 @@ All values are simulated and for local testing only.
 """
 from typing import Dict, Optional
 
+# Generic (default) pricing model
 PRICING_MODELS: Dict[str, float] = {
     "vCPU_hour": 0.01,      # USD per vCPU-hour
     "GB_RAM_hour": 0.005,   # USD per GB-RAM-hour
 }
 
+# Explicit CSP rate cards (from public pricing pages)
+CSP_RATE_CARDS: Dict[str, Dict[str, float]] = {
+    "aws_t3_medium": {
+        # 2 vCPUs, 4 GiB — us-east-1 on-demand
+        "vCPU_hour": 0.0208,
+        "GB_RAM_hour": 0.0052,
+    },
+    "aws_t3_micro": {
+        # 2 vCPUs, 1 GiB
+        "vCPU_hour": 0.0052,
+        "GB_RAM_hour": 0.0052,
+    },
+    "gcp_e2_medium": {
+        # 2 vCPUs, 4 GiB — us-central1
+        "vCPU_hour": 0.0168,
+        "GB_RAM_hour": 0.00225,
+    },
+    "gcp_e2_small": {
+        # 2 vCPUs, 2 GiB
+        "vCPU_hour": 0.0084,
+        "GB_RAM_hour": 0.00225,
+    },
+    "azure_b2s": {
+        # 2 vCPUs, 4 GiB — East US
+        "vCPU_hour": 0.0208,
+        "GB_RAM_hour": 0.0052,
+    },
+}
+
 CARBON_INTENSITY: Dict[str, float] = {
-    # grams CO2 per kWh (simulated values)
-    "us-east-1": 450.0,
-    "eu-west-1": 200.0,
+    # grams CO2 per kWh (simulated values based on published grid data)
+    "us-east-1": 450.0,       # Virginia
+    "us-west-2": 120.0,       # Oregon (heavy hydro)
+    "us-central1": 480.0,     # Iowa (GCP)
+    "eu-west-1": 200.0,       # Ireland
+    "eu-central-1": 350.0,    # Frankfurt
+    "ap-southeast-1": 500.0,  # Singapore
     "global": 400.0,
 }
 
@@ -106,6 +141,7 @@ def calculate_carbon_footprint(
 
 __all__ = [
     "PRICING_MODELS",
+    "CSP_RATE_CARDS",
     "CARBON_INTENSITY",
     "docker_cpu_percent_to_vcpu",
     "calculate_cost",

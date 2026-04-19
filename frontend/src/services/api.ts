@@ -107,3 +107,58 @@ export async function fetchLogs(id: string, tail = 100): Promise<string> {
   const { data } = await api.get<{ logs: string }>(`/containers/${id}/logs?tail=${tail}`)
   return data.logs
 }
+
+// ── Auto-Scaler APIs ──────────────────────────────────────────
+export interface ScalingEvent {
+  id: number
+  container_name: string
+  action: string
+  slope: number
+  current_cpu: number
+  current_replicas: number
+  target_replicas: number
+  reason: string
+  timestamp: string
+}
+
+export interface AutoScalerConfig {
+  enabled: boolean
+  lookback_minutes: number
+  min_data_points: number
+  slope_up_threshold: number
+  slope_down_threshold: number
+  cpu_low_for_down: number
+  cooldown_seconds: number
+  max_replicas: number
+  min_replicas: number
+  ma_window: number
+}
+
+export interface ScalingStatus {
+  enabled: boolean
+  config: AutoScalerConfig
+  recent_events: ScalingEvent[]
+}
+
+export async function fetchScalingEvents(limit = 50, containerName?: string): Promise<ScalingEvent[]> {
+  const url = containerName
+    ? `/scaling/events?limit=${limit}&container_name=${encodeURIComponent(containerName)}`
+    : `/scaling/events?limit=${limit}`
+  const { data } = await api.get<ScalingEvent[]>(url)
+  return data
+}
+
+export async function fetchScalingConfig(): Promise<AutoScalerConfig> {
+  const { data } = await api.get<AutoScalerConfig>('/scaling/config')
+  return data
+}
+
+export async function updateScalingConfig(config: Partial<AutoScalerConfig>): Promise<any> {
+  const { data } = await api.post('/scaling/config', config)
+  return data
+}
+
+export async function fetchScalingStatus(): Promise<ScalingStatus> {
+  const { data } = await api.get<ScalingStatus>('/scaling/status')
+  return data
+}

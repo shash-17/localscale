@@ -7,6 +7,7 @@ import sqlite3
 import logging
 import asyncio
 import datetime
+import json
 
 # Try relative import first (when run as package), fall back to top-level import
 try:
@@ -39,6 +40,17 @@ try:
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
 except Exception:
     AsyncIOScheduler = None
+
+# Predictive auto-scaler
+try:
+    from .autoscaler import PredictiveScaler, AutoScalerConfig, ScalingDecision
+except Exception:
+    try:
+        from autoscaler import PredictiveScaler, AutoScalerConfig, ScalingDecision
+    except Exception:
+        PredictiveScaler = None
+        AutoScalerConfig = None
+        ScalingDecision = None
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("localscale.backend")
@@ -103,6 +115,19 @@ class PolicyEvaluateRequest(BaseModel):
     host_cpus: Optional[int] = None
 
 
+class AutoScalerConfigRequest(BaseModel):
+    enabled: Optional[bool] = None
+    lookback_minutes: Optional[int] = None
+    min_data_points: Optional[int] = None
+    slope_up_threshold: Optional[float] = None
+    slope_down_threshold: Optional[float] = None
+    cpu_low_for_down: Optional[float] = None
+    cooldown_seconds: Optional[int] = None
+    max_replicas: Optional[int] = None
+    min_replicas: Optional[int] = None
+    ma_window: Optional[int] = None
+
+
 # Initialize ContainerManager (it handles Docker initialization/errors internally)
 manager = None
 if ContainerManager is not None:
@@ -127,6 +152,8 @@ except Exception:
         PolicyEngine = None
 
 POLICIES_PATH = os.path.join(os.path.dirname(__file__), "policies.json")
+AUTOSCALER_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "autoscaler_config.json")
+
 policy_engine = None
 if PolicyEngine is not None:
     try:
@@ -136,6 +163,21 @@ if PolicyEngine is not None:
     except Exception:
         logger.exception("Failed to initialize PolicyEngine")
         policy_engine = PolicyEngine()
+
+# Initialize predictive auto-scaler
+autoscaler = None
+if PredictiveScaler is not None and AutoScalerConfig is not None:
+    try:
+        _as_config = AutoScalerConfig()
+        if os.path.exists(AUTOSCALER_CONFIG_PATH):
+            with open(AUTOSCALER_CONFIG_PATH, "r") as fh:
+                _as_config = AutoScalerConfig.from_dict(json.load(fh))
+        autoscaler = PredictiveScaler(DB_PATH, _as_config)
+        autoscaler._init_events_table()
+        logger.info("Predictive auto-scaler initialized (enabled=%s)", _as_config.enabled)
+    except Exception:
+        logger.exception("Failed to initialize PredictiveScaler")
+        autoscaler = None
 
 
 def docker_required():
@@ -304,6 +346,52 @@ def evaluate_policy(req: PolicyEvaluateRequest):
     return result
 
 
+# ── Auto-Scaler APIs ─────────────────────────────────────────────
+@app.get("/scaling/events")
+def get_scaling_events(limit: int = 50, container_name: Optional[str] = None):
+    if autoscaler is None:
+        return []
+    return autoscaler.get_events(limit=limit, container_name=container_name)
+
+
+@app.get("/scaling/config")
+def get_scaling_config():
+    if autoscaler is None:
+        return {"enabled": False, "error": "Auto-scaler not available"}
+    return autoscaler.config.to_dict()
+
+
+@app.post("/scaling/config")
+def update_scaling_config(req: AutoScalerConfigRequest):
+    if autoscaler is None:
+        raise HTTPException(status_code=500, detail="Auto-scaler not available")
+    # Update only provided fields
+    update = req.model_dump(exclude_none=True)
+    current = autoscaler.config.to_dict()
+    current.update(update)
+    autoscaler.config = AutoScalerConfig.from_dict(current)
+    # Persist to disk
+    try:
+        with open(AUTOSCALER_CONFIG_PATH, "w") as fh:
+            json.dump(autoscaler.config.to_dict(), fh, indent=2)
+    except Exception:
+        logger.exception("Failed to save auto-scaler config")
+    return {"status": "ok", "config": autoscaler.config.to_dict()}
+
+
+@app.get("/scaling/status")
+def get_scaling_status():
+    """Return current auto-scaler state including latest decisions."""
+    if autoscaler is None:
+        return {"enabled": False, "error": "Auto-scaler not available"}
+    events = autoscaler.get_events(limit=5)
+    return {
+        "enabled": autoscaler.config.enabled,
+        "config": autoscaler.config.to_dict(),
+        "recent_events": events,
+    }
+
+
 def init_db():
     """Create metrics_history table if missing."""
     try:
@@ -333,7 +421,8 @@ def init_db():
 
 
 async def collect_metrics():
-    """Job that collects stats for all running containers, estimates cost/carbon, and writes to SQLite."""
+    """Job that collects stats for all running containers, estimates cost/carbon, writes to SQLite,
+    and runs the predictive auto-scaler if enabled."""
     global manager
     # Lazy re-init manager if Docker became available after startup
     if not manager or not getattr(manager, "client", None):
@@ -398,6 +487,13 @@ async def collect_metrics():
                         pass
 
             await asyncio.to_thread(_write)
+
+        # --- Predictive auto-scaler evaluation ---
+        if autoscaler is not None and autoscaler.config.enabled:
+            try:
+                await asyncio.to_thread(autoscaler.evaluate_all, containers, manager)
+            except Exception:
+                logger.exception("Auto-scaler evaluation failed")
     except Exception:
         logger.exception("Error in metrics collection job")
 
