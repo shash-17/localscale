@@ -34,3 +34,4 @@ node_modules/
 # Project artifacts
 loadtest/loadtest_comparison.png
 loadtest/*.csv
+docs/
