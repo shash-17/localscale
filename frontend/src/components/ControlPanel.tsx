@@ -87,8 +87,10 @@ const ControlPanel: React.FC<Props> = ({ onDone, containerName, containerId, con
 
   const TEMPLATES = [
     { label: 'Web Server', image: 'nginx:alpine', name: 'web', env: '', ports: '8080:80' },
+    { label: 'Compute App', image: 'localscale-demo', name: 'compute', env: '', ports: '9090:5000' },
     { label: 'Database', image: 'postgres:15-alpine', name: 'db', env: 'POSTGRES_PASSWORD=secret\nPOSTGRES_USER=admin', ports: '5432:5432' },
     { label: 'Cache', image: 'redis:alpine', name: 'cache', env: '', ports: '6379:6379' },
+    { label: 'CPU Stress', image: 'alpine', name: 'stress', env: '', ports: '' },
   ]
 
   function applyTemplate(t: typeof TEMPLATES[0]) {

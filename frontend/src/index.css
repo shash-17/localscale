@@ -7,7 +7,7 @@
 @tailwind utilities;
 
 :root {
-  /* Neumorphic palette */
+  /* Neumorphic palette — Light Mode */
   --neu-bg: #e4e8eb;
   --neu-bg-alt: #dce0e3;
   --neu-shadow-dark: #bec2c6;
@@ -34,6 +34,26 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ── Dark Mode Palette ── */
+[data-theme="dark"] {
+  --neu-bg: #1e2028;
+  --neu-bg-alt: #252830;
+  --neu-shadow-dark: #15171d;
+  --neu-shadow-light: #292c36;
+  --neu-text: #e8eaed;
+  --neu-text-secondary: #a0a4b8;
+  --neu-text-muted: #6b7084;
+  --neu-accent: #818cf8;
+  --neu-accent-hover: #6366f1;
+  --neu-accent-glow: rgba(129, 140, 248, 0.2);
+  --neu-accent-soft: rgba(129, 140, 248, 0.08);
+  --neu-success: #34d399;
+  --neu-warning: #fbbf24;
+  --neu-danger: #f87171;
+  --neu-border: rgba(255, 255, 255, 0.04);
+  color-scheme: dark;
+}
+
 *,
 *::before,
 *::after {
@@ -51,6 +71,7 @@ body {
   color: var(--neu-text);
   font-family: var(--neu-font);
   line-height: 1.5;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 #root {
@@ -86,6 +107,12 @@ body {
   outline-offset: 2px;
 }
 
+/* Dark mode dropdown/select fix */
+[data-theme="dark"] select option {
+  background: var(--neu-bg-alt);
+  color: var(--neu-text);
+}
+
 /* ─── Neumorphic Utility Classes ─── */
 @layer utilities {
   .neu-bg {
@@ -97,11 +124,17 @@ body {
                 -6px -6px 14px var(--neu-shadow-light);
     border: 1px solid rgba(255, 255, 255, 0.5);
   }
+  [data-theme="dark"] .neu-raised {
+    border: 1px solid rgba(255, 255, 255, 0.03);
+  }
   .neu-raised-sm {
     background: var(--neu-bg);
     box-shadow: 3px 3px 8px var(--neu-shadow-dark),
                 -3px -3px 8px var(--neu-shadow-light);
     border: 1px solid rgba(255, 255, 255, 0.4);
+  }
+  [data-theme="dark"] .neu-raised-sm {
+    border: 1px solid rgba(255, 255, 255, 0.03);
   }
   .neu-inset {
     background: var(--neu-bg);
@@ -119,6 +152,9 @@ body {
                 -3px -3px 8px var(--neu-shadow-light);
     border: 1px solid rgba(255, 255, 255, 0.4);
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  [data-theme="dark"] .neu-btn {
+    border: 1px solid rgba(255, 255, 255, 0.03);
   }
   .neu-btn:hover {
     box-shadow: 5px 5px 12px var(--neu-shadow-dark),

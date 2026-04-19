@@ -1,0 +1,12 @@
+{
+  "enabled": true,
+  "lookback_minutes": 1,
+  "min_data_points": 5,
+  "slope_up_threshold": 5.0,
+  "slope_down_threshold": -2.0,
+  "cpu_low_for_down": 20.0,
+  "cooldown_seconds": 60,
+  "max_replicas": 10,
+  "min_replicas": 1,
+  "ma_window": 3
+}

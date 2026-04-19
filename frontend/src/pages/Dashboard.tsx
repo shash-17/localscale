@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -12,6 +12,8 @@ import {
   X,
   PlusSquare,
   Zap,
+  Moon,
+  Sun,
 } from 'lucide-react'
 import ContainerList from '../components/ContainerList'
 import MetricsChart from '../components/MetricsChart'
@@ -31,7 +33,19 @@ export default function Dashboard() {
   const [activeContainer, setActiveContainer] = useState<Container | null>(null)
   const [nav, setNav] = useState<Nav>('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('localscale-theme') === 'dark'
+    }
+    return false
+  })
   const navigate = useNavigate()
+
+  // Apply dark mode to document
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
+    localStorage.setItem('localscale-theme', darkMode ? 'dark' : 'light')
+  }, [darkMode])
 
   async function reloadNow(currentContainers?: Container[]) {
     try {
@@ -152,6 +166,13 @@ export default function Dashboard() {
         </nav>
 
         <div className="dash-sidebar-footer">
+          <button
+            className="dash-nav-item"
+            onClick={() => setDarkMode(!darkMode)}
+          >
+            <span className="dash-nav-icon">{darkMode ? <Sun size={18} /> : <Moon size={18} />}</span>
+            <span>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
+          </button>
           <Link to="/" className="dash-nav-item dash-nav-back">
             <span className="dash-nav-icon"><ChevronLeft size={18} /></span>
             <span>Back to Home</span>
